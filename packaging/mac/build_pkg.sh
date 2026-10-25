@@ -26,16 +26,25 @@ for b in "$WORK"/au/*.component "$WORK"/vst3/*.vst3 "$WORK"/app/*.app; do
 done
 
 # One component package per bundle, never relocated to an older copy elsewhere on disk
-component_pkg () { # name source-dir install-location
+component_pkg () { # name source-dir install-location bundle-name
   local plist="$WORK/$1.plist"
-  pkgbuild --analyze --root "$WORK/$2" "$plist" >/dev/null
-  /usr/libexec/PlistBuddy -c "Set :0:BundleIsRelocatable false" "$plist"
+  cat > "$plist" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><array><dict>
+  <key>BundleHasStrictIdentifier</key><true/>
+  <key>BundleIsRelocatable</key><false/>
+  <key>BundleIsVersionChecked</key><false/>
+  <key>BundleOverwriteAction</key><string>upgrade</string>
+  <key>RootRelativeBundlePath</key><string>$4</string>
+</dict></array></plist>
+PLIST
   pkgbuild --root "$WORK/$2" --component-plist "$plist" --identifier "com.danova.dsynth.$1" \
            --version "$VERSION" --install-location "$3" "$WORK/$1.pkg"
 }
-component_pkg au   au   "/Library/Audio/Plug-Ins/Components"
-component_pkg vst3 vst3 "/Library/Audio/Plug-Ins/VST3"
-component_pkg app  app  "/Applications"
+component_pkg au   au   "/Library/Audio/Plug-Ins/Components" "D-SYNTH.component"
+component_pkg vst3 vst3 "/Library/Audio/Plug-Ins/VST3" "D-SYNTH.vst3"
+component_pkg app  app  "/Applications" "D-SYNTH.app"
 
 sed "s/@VERSION@/$VERSION/g" "$HERE/distribution.xml" > "$WORK/distribution.xml"
 PKG="$OUT/D-SYNTH-$VERSION-Mac.pkg"
