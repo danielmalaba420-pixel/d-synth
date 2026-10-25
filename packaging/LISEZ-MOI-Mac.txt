@@ -1,0 +1,13 @@
+D-SYNTH by Danova — Mac (Apple Silicon et Intel)
+
+1. Double-clique sur « Installer D-SYNTH.command ».
+   Si le Mac bloque l'ouverture : clic droit sur le fichier > Ouvrir > Ouvrir.
+2. Relance Logic Pro : piste instrument > AU Instruments > Danova > D-SYNTH.
+   Autres logiciels (Ableton, Studio One, FL Studio...) : VST3 > D-SYNTH.
+3. Sans logiciel : ouvre D-SYNTH dans le dossier Applications.
+
+Les 12 sons : Rising Run, The Run, Gospel Square, Worship Dotted, Soft Sine,
+Flute Synth, Whistle, Supersaw, Brass Lead, Afro Pluck, Vintage 80, The Glide.
+
+Molette : Build sur Rising Run, tremolo sur The Glide, vibrato sur les autres.
+CHORD GLIDE (sur The Glide) : vitesse du glissement entre les accords.

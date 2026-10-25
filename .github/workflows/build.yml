@@ -1,0 +1,65 @@
+name: Build D-SYNTH
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  workflow_dispatch:
+
+jobs:
+  mac:
+    name: macOS (Apple Silicon + Intel)
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -B build -G Xcode -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build build --config Release --target DSynth_AU DSynth_VST3 DSynth_Standalone -- -quiet
+      - name: Sign (ad-hoc) and package
+        run: |
+          A=build/DSynth_artefacts/Release
+          mkdir -p dist/D-SYNTH-Mac
+          cp -R "$A/AU/D-SYNTH.component" "$A/VST3/D-SYNTH.vst3" "$A/Standalone/D-SYNTH.app" dist/D-SYNTH-Mac/
+          for b in dist/D-SYNTH-Mac/*; do codesign --force --deep --sign - "$b"; done
+          lipo -info "dist/D-SYNTH-Mac/D-SYNTH.component/Contents/MacOS/D-SYNTH"
+          cp packaging/LISEZ-MOI-Mac.txt dist/D-SYNTH-Mac/LISEZ-MOI.txt
+          cp packaging/installer-mac.command "dist/D-SYNTH-Mac/Installer D-SYNTH.command"
+          chmod +x dist/D-SYNTH-Mac/*.command
+          cd dist && ditto -c -k --keepParent D-SYNTH-Mac D-SYNTH-0.1-Mac.zip
+      - name: Validate Audio Unit
+        run: |
+          mkdir -p ~/Library/Audio/Plug-Ins/Components
+          cp -R dist/D-SYNTH-Mac/D-SYNTH.component ~/Library/Audio/Plug-Ins/Components/
+          killall -9 AudioComponentRegistrar 2>/dev/null || true
+          auval -v aumu Dsyn Dnva | tail -5
+      - uses: actions/upload-artifact@v4
+        with:
+          name: D-SYNTH-Mac
+          path: dist/D-SYNTH-0.1-Mac.zip
+
+  builds:
+    name: Publier le zip (branche builds)
+    needs: [ mac ]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+      - name: Push to builds branch
+        run: |
+          mkdir out
+          find dist -name '*.zip' -exec cp {} out/ \;
+          cd out
+          echo "Commit ${GITHUB_SHA}" > BUILD.txt
+          git init -q
+          git checkout -q -b builds
+          git add .
+          git -c user.name=ci -c user.email=ci@users.noreply.github.com commit -qm "Builds ${GITHUB_SHA::7}"
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" builds
