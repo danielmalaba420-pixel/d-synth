@@ -103,15 +103,15 @@ inline const std::vector<Preset>& factoryPresets()
             { pDlyTime, 5 }, { pDlyFb, 0.3f }, { pDlyMix, 0.18f }, { pRevMix, 0.25f },
             { pWidth, 1.4f }, { pComp, 0.45f }, { pOutput, -5.3f } } },
 
-        // 08 — synth brass stabs
-        { "BRASS LEAD", "Cuivré · stabs", {
-            { pOscAWave, 0 }, { pOscBWave, 0 }, { pOscBLevel, 0.7f }, { pOscBDetune, 9 },
-            { pUnison, 2 }, { pDetune, 7 }, { pPoly, 1 }, { pGlide, 0 },
-            { pAmpA, 12 }, { pAmpD, 600 }, { pAmpS, 0.7f }, { pAmpR, 180 },
-            { pCutoff, 600 }, { pReso, 0.12f }, { pKeyTrack, 0.7f }, { pFiltEnv, 3.0f },
-            { pFiltA, 40 }, { pFiltD, 380 }, { pFiltS, 0.35f }, { pVelCutoff, 1.5f },
-            { pDrive, 0.3f }, { pMwFilter, 0.4f }, { pMwVibrato, 0.5f },
-            { pDlyMix, 0.1f }, { pRevMix, 0.16f }, { pComp, 0.5f }, { pOutput, -3.7f } } },
+        // 08 — Finger Bass: a real fingered electric bass, built as a plucked-string model
+        //      (finger pluck, vibrating string, bridge pickup, amp tone). Mono, every note re-plucks.
+        { "FINGER BASS", "Vraie basse aux doigts · corde et micro", {
+            { pEngine, 2 }, { pPoly, 0 }, { pGlide, 0 }, { pLegatoGlide, 1 },
+            { pBassTone, 0.55f }, { pBassPluck, 0.24f }, { pBassSustain, 4.0f }, { pBassPickup, 0.55f }, { pBassThump, 0.55f },
+            { pAmpA, 0.5f }, { pAmpD, 100 }, { pAmpS, 1.0f }, { pAmpR, 350 }, { pVelSens, 0.5f },
+            { pVibDepth, 0.0f }, { pMwVibrato, 0.25f }, { pPbRange, 2 },
+            { pDlyMix, 0.0f }, { pRevSize, 0.5f }, { pRevMix, 0.03f },
+            { pWidth, 0.0f }, { pComp, 0.6f }, { pOutput, -4.5f } } },
 
         // 09 — short afro pluck
         { "AFRO PLUCK", "Court · rythmique", {
@@ -122,14 +122,20 @@ inline const std::vector<Preset>& factoryPresets()
             { pFiltD, 160 }, { pFiltS, 0.0f }, { pDrive, 0.2f },
             { pDlyTime, 3 }, { pDlyFb, 0.35f }, { pDlyMix, 0.25f }, { pRevMix, 0.18f }, { pComp, 0.4f }, { pOutput, -6.2f } } },
 
-        // 10 — eighties vintage lead
-        { "VINTAGE 80", "Rétro années 80", {
-            { pOscAWave, 1 }, { pOscBWave, 1 }, { pOscBLevel, 0.6f }, { pOscBDetune, 12 },
-            { pUnison, 1 }, { pPoly, 0 }, { pGlide, 50 }, { pLegatoGlide, 1 },
-            { pCutoff, 1500 }, { pReso, 0.35f }, { pKeyTrack, 0.7f }, { pFiltEnv, 1.5f },
-            { pDrive, 0.2f }, { pVibDepth, 0.08f }, { pMwVibrato, 1.0f }, { pPbRange, 2 },
-            { pDlyTime, 5 }, { pDlyFb, 0.4f }, { pDlyMix, 0.25f }, { pDlyPingPong, 0 },
-            { pRevMix, 0.22f }, { pWidth, 0.9f }, { pOutput, -10.3f } } },
+        // 10 — String Glide: strings blended with a heavy dark pad; chords glide into each other
+        //      (Glide knob = chord glide time)
+        { "STRING GLIDE", "Cordes + pad dark lourd · glide d'accords", {
+            { pEngine, 0 }, { pPoly, 1 }, { pGlide, 380 }, { pScoop, -2.0f },
+            { pOscAWave, 0 }, { pUnison, 7 }, { pDetune, 14 }, { pSpread, 0.9f },
+            { pOscBWave, 0 }, { pOscBLevel, 0.6f }, { pOscBSemi, -12 }, { pOscBDetune, -4 },
+            { pSubLevel, 0.35f }, { pSubOct, 0 }, { pNoise, 0.02f },
+            { pAmpA, 450 }, { pAmpD, 2000 }, { pAmpS, 1.0f }, { pAmpR, 900 }, { pVelSens, 0.35f },
+            { pCutoff, 950 }, { pReso, 0.1f }, { pKeyTrack, 0.5f }, { pFiltEnv, 0.6f },
+            { pFiltA, 800 }, { pFiltD, 1500 }, { pFiltS, 0.6f }, { pFiltR, 900 }, { pVelCutoff, 0.4f },
+            { pDrive, 0.12f }, { pVelDrive, 0.0f },
+            { pVibRate, 5.2f }, { pVibDepth, 0.04f }, { pVibDelay, 600 }, { pMwVibrato, 0.4f }, { pMwBuild, 0.0f }, { pPbRange, 2 },
+            { pDlyTime, 5 }, { pDlyFb, 0.2f }, { pDlyMix, 0.05f }, { pDlyDuck, 0.5f },
+            { pRevSize, 0.88f }, { pRevDamp, 0.55f }, { pRevMix, 0.32f }, { pWidth, 1.3f }, { pComp, 0.45f }, { pOutput, -3.9f } } },
 
         // 11 — Elle Glide: EP on top, a low Rhodes underneath, and a low drone shimmer pad
         //      that only swells while you keep your hands on the keys (Glide knob = chord glide)
@@ -149,21 +155,19 @@ inline const std::vector<Preset>& factoryPresets()
             { pRevSize, 0.88f }, { pRevDamp, 0.55f }, { pRevMix, 0.26f }, { pWidth, 1.2f }, { pComp, 0.4f }, { pOutput, -7.1f } } },
 
         // 12 — The Glide: played with chords. A warm EP layered on a deep pad; when you change chords,
-        //      every note (EP and pad together) glides R&B-style into the new chord. Glide knob = glide time.
-        { "THE GLIDE", "EP + deep pad · glide d'accords R&B", {
-            { pEngine, 1 }, { pEpModel, 1 }, { pEpLevel, 0.9f }, { pEpBark, 0.22f }, { pEpDecay, 6.0f },
-            { pRhodesMix, 0.0f }, { pEpTrem, 0.0f }, { pMwTrem, 0.5f },
-            { pPadLevel, 0.55f }, { pShimmer, 0.0f }, { pScoop, -2.0f },
-            { pOscAWave, 0 }, { pUnison, 5 }, { pDetune, 11 }, { pSpread, 0.9f },
-            { pOscBWave, 2 }, { pOscBLevel, 0.7f }, { pOscBSemi, -12 }, { pOscBDetune, 3 },
+        // 13 — Glide Sine: pure sine chords, steady like a soft organ, no brightness, mono;
+        //      every chord change slides quickly into the next one, R&B style (Glide knob = slide time)
+        { "GLIDE SINE", "Accords sinus purs · glide R&B", {
+            { pEngine, 0 }, { pClean, 1 }, { pPoly, 1 }, { pGlide, 120 }, { pScoop, 0.0f },
+            { pOscAWave, 2 }, { pUnison, 1 }, { pDetune, 0 }, { pSpread, 0.0f },
+            { pOscBWave, 2 }, { pOscBLevel, 0.04f }, { pOscBSemi, 12 }, { pOscBDetune, 0 },
             { pSubLevel, 0.0f }, { pNoise, 0.0f },
-            { pPoly, 1 }, { pGlide, 420 },
-            { pAmpA, 280 }, { pAmpD, 2000 }, { pAmpS, 1.0f }, { pAmpR, 600 }, { pVelSens, 0.35f },
-            { pCutoff, 430 }, { pReso, 0.08f }, { pKeyTrack, 0.35f }, { pFiltEnv, 0.0f }, { pVelCutoff, 0.0f },
-            { pDrive, 0.15f }, { pVelDrive, 0.0f },
-            { pVibRate, 4.8f }, { pVibDepth, 0.0f }, { pMwVibrato, 0.0f }, { pMwBuild, 0.0f }, { pPbRange, 2 },
-            { pDlyTime, 5 }, { pDlyFb, 0.2f }, { pDlyMix, 0.06f }, { pDlyDuck, 0.5f },
-            { pRevSize, 0.84f }, { pRevDamp, 0.6f }, { pRevMix, 0.24f }, { pWidth, 1.2f }, { pComp, 0.5f }, { pOutput, -5.9f } } },
+            { pAmpA, 35 }, { pAmpD, 2000 }, { pAmpS, 1.0f }, { pAmpR, 180 }, { pVelSens, 0.15f },
+            { pCutoff, 8000 }, { pReso, 0.0f }, { pKeyTrack, 0.0f }, { pFiltEnv, 0.0f }, { pVelCutoff, 0.0f },
+            { pDrive, 0.0f }, { pVelDrive, 0.0f },
+            { pVibDepth, 0.0f }, { pMwVibrato, 0.3f }, { pMwBuild, 0.0f }, { pPbRange, 2 },
+            { pDlyMix, 0.0f }, { pRevSize, 0.7f }, { pRevDamp, 0.6f }, { pRevMix, 0.05f },
+            { pWidth, 0.0f }, { pComp, 0.2f }, { pOutput, -4.3f } } },
     };
     return presets;
 }

@@ -162,6 +162,16 @@ struct Voice
     float shimLfo = 0.0f, shimRate = 0.4f;
     float epEnv = 0, epBarkEnv = 0, epTineEnv = 0, epAtk = 0;
     float epCoefHeld = 0.9999f, epCoefRel = 0.999f;
+    // finger bass: plucked string (Karplus-Strong style waveguide)
+    std::vector<float> ks;
+    int ksW = 0;
+    float ksLp = 0.0f, ksDc = 0.0f, ksDcIn = 0.0f, ksAmp = 0.0f, ksPrev = 0.0f, muteRamp = 0.0f;
+    int muteSamples = 0;
+    float ksG = 0.0f, ksDamp = 0.0f, ksD = 0.0f;
+    int excPos = 1 << 30, excLen = 0;
+    float excPeak = 0.25f, excLpState = 0.0f, excLpCoef = 0.3f, excGain = 1.0f;
+    float thumpPhase = 1.0f, thumpGain = 0.0f, bassBright = 0.0f, bassBrightCoef = 0.99f;
+    OnePole bassTone1, bassTone2;
     bool released = false;      // key up (or pedal up)
     bool keyDown = false;       // finger still on the key
     bool sustained = false;     // key up but held by the sustain pedal
@@ -296,7 +306,11 @@ public:
         dlyR.assign ((size_t) (sr * 4.0f) + 4, 0.0f);
         dlyW = 0;
         reverb.prepare (sampleRate);
-        for (auto& v : voices) v = Voice();
+        for (auto& v : voices)
+        {
+            v = Voice();
+            v.ks.assign ((size_t) (sr / 20.0f) + 8, 0.0f);    // down to 20 Hz
+        }
         held.clear();
         buildSm = values[pBuild];
         dlySamplesSm = -1.0f;
@@ -326,7 +340,7 @@ public:
     {
         if (values[pPoly] < 0.5f) { monoNoteOff (note); return; }
 
-        const bool keysMode = values[pEngine] > 0.5f;
+        const bool keysMode = std::lround (values[pEngine]) == 1;
         for (auto& v : voices)
         {
             if (! v.active || v.note != note || ! v.keyDown) continue;
@@ -407,7 +421,10 @@ public:
         const float outGain = dbToGain (p[pOutput]);
         const float dt = 1.0f / sr;
 
-        const bool keysMode = p[pEngine] > 0.5f;
+        const int engineMode = (int) std::lround (p[pEngine]);
+        const bool keysMode = engineMode == 1;
+        const bool bassMode = engineMode == 2;
+        const bool cleanPath = p[pClean] > 0.5f;
         const bool epModelEP = p[pEpModel] > 0.5f;
         const float shimmer = p[pShimmer];
         const float rhodesMix = p[pRhodesMix];
@@ -451,10 +468,21 @@ public:
                 const float aenv = v.amp.tick();
                 const float fenv = v.filt.tick();
                 const bool padIdle = v.amp.stage == Env::Idle;
-                if (padIdle && (! keysMode || v.epEnv < 1.0e-4f)) { v.active = false; continue; }
+                if (padIdle && ! bassMode && (! keysMode || v.epEnv < 1.0e-4f)) { v.active = false; continue; }
 
                 const double baseHz = 440.0 * std::pow (2.0, (pitch - 69.0) / 12.0);
                 const float velGain = 1.0f - p[pVelSens] + p[pVelSens] * v.velocity;
+
+                // ---- finger bass: a plucked string read through a pickup
+                if (bassMode)
+                {
+                    // the string model handles its own dynamics (velocity in the pluck, damping on release),
+                    // so no envelope or gain jumps are applied on top: re-plucks and releases stay click-free
+                    const float out = bassTick (v, baseHz);
+                    sumL += out; sumR += out;
+                    if (v.released && v.ksAmp < 1.0e-5f) v.active = false;
+                    continue;
+                }
 
                 // ---- electric piano layer: rings on its own, damped when the key (or pedal) is released
                 if (keysMode)
@@ -555,8 +583,12 @@ public:
                 const float drv = clampf (drive + v.velocity * p[pVelDrive] * 0.5f, 0.0f, 1.0f);
                 const float pre = 1.0f + drv * 5.0f;
                 const float norm = 1.0f / std::tanh (pre * 0.7f);
-                vl = std::tanh (vl * pre * 0.7f) * norm * 0.7f;
-                vr = std::tanh (vr * pre * 0.7f) * norm * 0.7f;
+                if (cleanPath) { vl *= 0.7f; vr *= 0.7f; }          // pure tone: no saturation at all
+                else
+                {
+                    vl = std::tanh (vl * pre * 0.7f) * norm * 0.7f;
+                    vr = std::tanh (vr * pre * 0.7f) * norm * 0.7f;
+                }
 
                 // filter: opens with key (higher notes brighter), velocity, envelope, build and mod wheel
                 const float octaves = (float) ((v.note - 60) / 12.0) * p[pKeyTrack]
@@ -575,8 +607,11 @@ public:
 
                 // post-filter grain
                 const float grain = 1.0f + drv * 1.5f;
-                vl = std::tanh (vl * grain) / grain * (1.0f + drv * 0.6f);
-                vr = std::tanh (vr * grain) / grain * (1.0f + drv * 0.6f);
+                if (! cleanPath)
+                {
+                    vl = std::tanh (vl * grain) / grain * (1.0f + drv * 0.6f);
+                    vr = std::tanh (vr * grain) / grain * (1.0f + drv * 0.6f);
+                }
 
                 // shimmer: soft high octaves that sparkle slowly, only while the pad sounds
                 if (shimmer > 0.001f)
@@ -738,6 +773,13 @@ private:
 
         const bool legatoOnly = values[pLegatoGlide] > 0.5f;
         const bool glide = v.active && (legato || ! legatoOnly);
+        if (std::lround (values[pEngine]) == 2)
+        {
+            // bass: every note is a new pluck on the string (a slide only if Glide is turned up)
+            v.start (note, vel, true, glide && values[pGlide] > 0.5f, rng);
+            bassPluck (v);
+            return;
+        }
         if (legato)
         {
             v.target = note; v.note = note;
@@ -756,6 +798,123 @@ private:
         held.erase (std::remove (held.begin(), held.end(), note), held.end());
         if (held.empty()) { if (v.active) v.release(); }
         else if (v.note == note) { v.target = held.back(); v.note = held.back(); }
+    }
+
+    // ---- finger bass -----------------------------------------------------------------
+    // A finger pluck: a soft, rounded displacement fed into the string over one period,
+    // plus a tiny low "thump" of the fingertip hitting the string.
+    void bassPluck (Voice& v)
+    {
+        const float hz = 440.0f * std::pow (2.0f, ((float) v.note - 69.0f) / 12.0f);
+        const float period = sr / hz;
+        const float vel = v.velocity;
+        const bool ringing = v.ksAmp > 0.02f && v.active;
+        if (ringing)                                       // re-pluck: the finger stops most of the old vibration
+        {
+            v.muteSamples = (int) period + 1;              // over one full period the whole string is damped...
+            v.muteRamp = 0.0f;                             // ...with a short fade so there is no click
+        }
+        v.excLen = std::max (4, (int) period);
+        v.excPos = 0;
+        v.excPeak = clampf (values[pBassPluck], 0.05f, 0.5f);
+        // harder = brighter attack; Tone knob opens it further
+        const float excHz = (800.0f + 3500.0f * vel * vel) * (0.5f + values[pBassTone]);
+        v.excLpCoef = OnePole::coefFor (excHz, sr);
+        v.excLpState = 0.0f;
+        v.excGain = 0.45f + 0.75f * vel;
+        v.bassBright = 1.0f;
+        v.bassBrightCoef = std::exp (-1.0f / (0.28f * sr));
+        v.thumpPhase = 0.0f;
+        v.thumpGain = values[pBassThump] * (0.3f + 0.7f * vel);
+        v.ksAmp = 1.0f;
+        if (! ringing) { v.ksLp = 0.0f; v.ksDc = v.ksDcIn = 0.0f; v.ksPrev = 0.0f; v.muteSamples = 0; v.ksG = 0.0f; v.ksD = 0.0f; std::fill (v.ks.begin(), v.ks.end(), 0.0f); }
+    }
+
+    float bassTick (Voice& v, double hz)
+    {
+        const int size = (int) v.ks.size();
+        const float period = clampf ((float) (sr / hz), 2.0f, (float) size - 4.0f);
+        const float tone = values[pBassTone];
+
+        // string losses: low notes ring longer; a released key is muted by the fingers
+        const float t60 = v.released ? 0.09f
+                                     : values[pBassSustain] * std::pow (2.0f, -(float) (v.note - 28) / 18.0f);
+        // on a re-pluck the finger damps the old vibration during one period (smoothly, via ksG)
+        const float gT = v.muteSamples > 0 ? 0.3f
+                                           : std::pow (10.0f, -3.0f * period / (sr * std::max (0.02f, t60)));
+        const float dampT = clampf (0.58f - 0.4f * tone + (v.released ? 0.25f : 0.0f), 0.05f, 0.9f);  // one-pole loss filter: highs fade first
+        // the finger lands on the string over a few ms: smooth the change so releases never click
+        const float sm = 1.0f - std::exp (-1.0f / (0.006f * sr));
+        if (v.ksG <= 0.0f) { v.ksG = gT; v.ksDamp = dampT; }
+        v.ksG += sm * (gT - v.ksG);
+        v.ksDamp += sm * (dampT - v.ksDamp);
+        const float g = v.ksG, damp = v.ksDamp;
+
+        // tuning: remove the loss filter's phase delay so the note stays in tune
+        const float w = 2.0f * (float) kPi / period;
+        const float lpDelay = std::atan2 (damp * std::sin (w), 1.0f - damp * std::cos (w)) / w;
+        const float dT = clampf (period - lpDelay, 2.0f, (float) size - 4.0f);
+        // a new fret position takes ~2 ms to settle, so the read point never jumps (no click)
+        if (v.ksD <= 0.0f) v.ksD = dT;
+        v.ksD += (1.0f - std::exp (-1.0f / (0.002f * sr))) * (dT - v.ksD);
+        const float d = v.ksD;
+
+        float rp = (float) v.ksW - d;
+        while (rp < 0.0f) rp += (float) size;
+        const int i0 = (int) rp;
+        const float fr = rp - (float) i0;
+        const float y = v.ks[(size_t) i0] + fr * (v.ks[(size_t) ((i0 + 1) % size)] - v.ks[(size_t) i0]);
+
+        // loss filter + decay
+        v.ksLp = (1.0f - damp) * y + damp * v.ksLp;
+        float in = v.ksLp * g;
+        if (v.muteSamples > 0) --v.muteSamples;
+
+        // excitation: rounded pluck shape (triangle peaking at the pluck point), softened by the finger
+        if (v.excPos < v.excLen + 96)
+        {
+            const float x = std::min (1.0f, (float) v.excPos / (float) v.excLen);
+            // rounded finger shape (no corner at the start, so the string starts moving smoothly)
+            const float shape = x < v.excPeak ? 0.5f - 0.5f * std::cos ((float) kPi * x / v.excPeak)
+                                              : 0.5f + 0.5f * std::cos ((float) kPi * (x - v.excPeak) / (1.0f - v.excPeak));
+            v.excLpState += v.excLpCoef * (shape - v.excLpState);
+            in += v.excLpState * v.excGain;
+            ++v.excPos;
+        }
+        v.ks[(size_t) v.ksW] = in;
+        v.ksAmp = 0.999f * v.ksAmp + 0.001f * std::abs (in);
+
+        // pickup near the bridge: the string seen from a point (comb) gives the electric-bass "growl"
+        const float pickupPos = 0.06f + 0.16f * (1.0f - values[pBassPickup]);
+        float pp = (float) v.ksW - pickupPos * period;
+        while (pp < 0.0f) pp += (float) size;
+        const int p0 = (int) pp;
+        const float yp = v.ks[(size_t) p0];
+        if (++v.ksW >= size) v.ksW = 0;
+
+        // a magnetic pickup senses string velocity as well as position: blend both
+        const float velSig = (in - v.ksPrev) * period / (2.0f * (float) kPi);
+        v.ksPrev = in;
+        float out = 0.55f * (in - 0.85f * yp) + 0.6f * velSig;
+
+        // remove DC (the pluck shape has an offset)
+        v.ksDc = out - v.ksDcIn + 0.9995f * v.ksDc; v.ksDcIn = out;
+        out = v.ksDc;
+
+        // fingertip thump: a short low bump on the attack
+        if (v.thumpPhase < 1.0f)
+        {
+            out += std::sin ((float) kPi * v.thumpPhase) * v.thumpGain * 0.35f;
+            v.thumpPhase += 1.0f / (0.012f * sr);
+        }
+
+        // amp / cabinet tone: rounded top, a little warmth
+        // the string's highs fade after the attack: tone opens on the pluck, then settles
+        v.bassBright *= v.bassBrightCoef;
+        const float cut = (500.0f + 2500.0f * tone * tone + 600.0f * v.velocity) * (1.0f + 2.5f * v.bassBright);
+        const float c = OnePole::coefFor (cut, sr);
+        out = v.bassTone2.lp (v.bassTone1.lp (out, c), c);
+        return std::tanh (out * 1.6f) * 0.8f;
     }
 
     // Rhodes decay: longer in the bass, shorter in the treble; quick damper on release
@@ -805,6 +964,7 @@ private:
         chosen->age = ++ageCounter;
         chosen->start (note, vel, true, false, rng);
         epSetup (*chosen);
+        if (std::lround (values[pEngine]) == 2) bassPluck (*chosen);
 
         // chord glide: start from the nearest unused note of the previous chord, else scoop up from below
         if (values[pGlide] > 0.5f)

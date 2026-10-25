@@ -168,6 +168,22 @@ static Song glideSong()
     return s;
 }
 
+// Finger bass groove: gospel/R&B line in Eb, with ghost notes and an octave pop
+static Song bassSong()
+{
+    Song s;
+    struct N { double b, len; int n; float v; };
+    const std::vector<N> bar = {
+        { 0.0, 0.45, 39, 0.95f }, { 0.75, 0.2, 39, 0.45f }, { 1.0, 0.45, 46, 0.8f }, { 1.5, 0.2, 51, 0.7f },
+        { 2.0, 0.7, 44, 0.9f }, { 2.75, 0.2, 44, 0.4f }, { 3.0, 0.3, 46, 0.8f }, { 3.5, 0.4, 41, 0.75f } };
+    const int roots[] = { 0, -3, -7, -2 };   // Eb, C, Ab, Bb
+    for (int bar_i = 0; bar_i < 8; ++bar_i)
+        for (auto x : bar)
+            s.note (bar_i * 4.0 + x.b, x.len, x.n + roots[bar_i % 4], x.v);
+    s.note (32.0, 1.6, 39, 1.0f);   // final low Eb rings
+    return s;
+}
+
 // A short phrase for each lead in the tour
 static Song tourPhrase (bool poly)
 {
@@ -244,7 +260,17 @@ int main (int argc, char** argv)
     {
         std::vector<float> L, R;
         render (presets[11], glideSong(), 72.0, 31.0, L, R, sr);
-        writeWav (outDir + "/D-SYNTH_The_Glide.wav", L, R, (int) sr);
+        writeWav (outDir + "/D-SYNTH_Glide_Sine.wav", L, R, (int) sr);
+    }
+    {
+        std::vector<float> L, R;
+        render (presets[9], glideSong(), 72.0, 31.0, L, R, sr);
+        writeWav (outDir + "/D-SYNTH_String_Glide.wav", L, R, (int) sr);
+    }
+    {
+        std::vector<float> L, R;
+        render (presets[7], bassSong(), 92.0, 34.5, L, R, sr);
+        writeWav (outDir + "/D-SYNTH_Finger_Bass.wav", L, R, (int) sr);
     }
     {
         std::vector<float> L, R;

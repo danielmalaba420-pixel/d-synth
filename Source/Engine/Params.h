@@ -31,6 +31,9 @@ enum ParamId : int
     pWidth, pComp, pOutput,
     // Keys engine (electric piano layer + pad layer + chord glide)
     pEngine, pEpLevel, pEpBark, pEpDecay, pEpTrem, pMwTrem, pPadLevel, pScoop, pEpModel, pShimmer, pRhodesMix,
+    // Bass engine (plucked string model)
+    pBassTone, pBassPluck, pBassSustain, pBassPickup, pBassThump,
+    pClean,
     kNumParams
 };
 
@@ -48,7 +51,7 @@ struct ParamInfo
 
 // Wave shapes for oscillator A and B
 static constexpr const char* kWaveNames[] = { "Saw", "Square", "Sine", "Triangle" };
-static constexpr const char* kEngineNames[] = { "Lead", "Keys" };
+static constexpr const char* kEngineNames[] = { "Lead", "Keys", "Bass" };
 static constexpr const char* kEpModelNames[] = { "Rhodes", "EP" };
 
 // Delay divisions, in beats
@@ -119,7 +122,7 @@ inline const std::array<ParamInfo, kNumParams>& paramTable()
         { "comp",       "Compression",       0, 1, 0.3f,   ParamKind::Float, "",   0 },
         { "output",     "Output",           -24, 6, -3,    ParamKind::Float, "dB", 0 },
 
-        { "engine",     "Engine",            0, 1, 0,      ParamKind::Choice, "",   0 },
+        { "engine",     "Engine",            0, 2, 0,      ParamKind::Choice, "",   0 },
         { "epLevel",    "Keys Level",        0, 1, 0.8f,   ParamKind::Float, "",   0 },
         { "epBark",     "Keys Bark",         0, 1, 0.5f,   ParamKind::Float, "",   0 },
         { "epDecay",    "Keys Decay",        0.5f, 12, 4,  ParamKind::Float, "s",  0 },
@@ -130,6 +133,12 @@ inline const std::array<ParamInfo, kNumParams>& paramTable()
         { "epModel",    "Keys Model",        0, 1, 0,      ParamKind::Choice, "",  0 },
         { "shimmer",    "Pad Shimmer",       0, 1, 0.0f,   ParamKind::Float, "",   0 },
         { "rhodesMix",  "Rhodes Layer",      0, 1, 0.0f,   ParamKind::Float, "",   0 },
+        { "bassTone",   "Bass Tone",         0, 1, 0.45f,  ParamKind::Float, "",   0 },
+        { "bassPluck",  "Bass Pluck Position", 0.05f, 0.5f, 0.22f, ParamKind::Float, "", 0 },
+        { "bassSustain","Bass Sustain",      0.5f, 10, 4.0f, ParamKind::Float, "s",  0 },
+        { "bassPickup", "Bass Pickup",       0, 1, 0.5f,   ParamKind::Float, "",   0 },
+        { "bassThump",  "Bass Finger Thump", 0, 1, 0.5f,   ParamKind::Float, "",   0 },
+        { "clean",      "Pure Tone",         0, 1, 0,      ParamKind::Bool,  "",   0 },
     } };
     return t;
 }

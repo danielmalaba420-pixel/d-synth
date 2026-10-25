@@ -30,7 +30,7 @@ jobs:
           cp packaging/LISEZ-MOI-Mac.txt dist/D-SYNTH-Mac/LISEZ-MOI.txt
           cp packaging/installer-mac.command "dist/D-SYNTH-Mac/Installer D-SYNTH.command"
           chmod +x dist/D-SYNTH-Mac/*.command
-          cd dist && ditto -c -k --keepParent D-SYNTH-Mac D-SYNTH-0.2-Mac.zip
+          cd dist && ditto -c -k --keepParent D-SYNTH-Mac D-SYNTH-0.3-Mac.zip
       - name: Validate Audio Unit
         run: |
           mkdir -p ~/Library/Audio/Plug-Ins/Components
@@ -40,7 +40,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: D-SYNTH-Mac
-          path: dist/D-SYNTH-0.2-Mac.zip
+          path: dist/D-SYNTH-0.3-Mac.zip
 
   builds:
     name: Publier le zip (branche builds)
