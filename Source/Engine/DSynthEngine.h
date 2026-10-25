@@ -803,7 +803,7 @@ private:
         // chord glide: start from the nearest unused note of the previous chord, else scoop up from below
         if (values[pGlide] > 0.5f)
         {
-            int best = -1; double bestDist = 7.5;
+            int best = -1; double bestDist = 12.5;   // every chord tone glides from a tone of the previous chord
             for (size_t i = 0; i < prevPitches.size(); ++i)
             {
                 const double d = std::abs (prevPitches[i] - note);

@@ -69,13 +69,13 @@ inline const std::vector<Preset>& factoryPresets()
             { pRevMix, 0.18f }, { pComp, 0.35f }, { pOutput, -7.8f } } },
 
         // 04 — soft sine, talkbox-ish runs
-        { "SOFT SINE", "Sinusoïde · effet duo sur les runs", {
+        { "SOFT SINE", "Sinusoïde · gros duo et delay", {
             { pOscAWave, 2 }, { pOscBWave, 3 }, { pOscBLevel, 0.3f }, { pOscBSemi, 12 },
             { pUnison, 1 }, { pPoly, 0 }, { pGlide, 70 }, { pLegatoGlide, 0 },
             { pAmpA, 6 }, { pCutoff, 3500 }, { pKeyTrack, 0.5f }, { pFiltEnv, 0.3f },
             { pDrive, 0.25f }, { pVelDrive, 0.3f }, { pVibDepth, 0.12f }, { pVibRate, 5.0f },
             { pMwVibrato, 1.0f }, { pPbRange, 2 },
-            { pDlyTime, 2 }, { pDlyFb, 0.32f }, { pDlyMix, 0.85f }, { pDlyPingPong, 1 }, { pDlyHP, 220 }, { pDlyLP, 8000 }, { pDlyDuck, 0.0f }, { pDlyDuo, 1.0f }, { pRevMix, 0.12f }, { pOutput, -8.9f } } },
+            { pDlyTime, 2 }, { pDlyFb, 0.46f }, { pDlyMix, 1.0f }, { pDlyPingPong, 1 }, { pDlyHP, 220 }, { pDlyLP, 8000 }, { pDlyDuck, 0.0f }, { pDlyDuo, 1.0f }, { pRevMix, 0.16f }, { pOutput, -8.9f } } },
 
         // 05 — airy flute synth
         { "FLUTE SYNTH", "Doux · aérien · effet duo", {
@@ -151,12 +151,12 @@ inline const std::vector<Preset>& factoryPresets()
         // 12 — The Glide: a soft sine glide pad (in the spirit of a "sine one" glide pad):
         //      round, warm, no bright edge; chords glide into each other (Glide knob = chord glide)
         { "THE GLIDE", "Glide pad sinus lourd · doux et rond", {
-            { pEngine, 0 }, { pShimmer, 0.0f }, { pPadLevel, 1.0f }, { pScoop, -1.0f },
+            { pEngine, 0 }, { pShimmer, 0.0f }, { pPadLevel, 1.0f }, { pScoop, -2.0f },
             { pOscAWave, 2 }, { pUnison, 3 }, { pDetune, 6 }, { pSpread, 0.85f },
             { pOscBWave, 2 }, { pOscBLevel, 0.55f }, { pOscBSemi, -12 }, { pOscBDetune, 3 },
             { pSubLevel, 0.25f }, { pSubOct, 0 }, { pNoise, 0.0f },
-            { pPoly, 1 }, { pGlide, 300 },
-            { pAmpA, 120 }, { pAmpD, 2000 }, { pAmpS, 1.0f }, { pAmpR, 700 }, { pVelSens, 0.3f },
+            { pPoly, 1 }, { pGlide, 900 },
+            { pAmpA, 120 }, { pAmpD, 2000 }, { pAmpS, 1.0f }, { pAmpR, 900 }, { pVelSens, 0.3f },
             { pCutoff, 1150 }, { pReso, 0.0f }, { pKeyTrack, 0.3f }, { pFiltEnv, 0.0f }, { pVelCutoff, 0.0f },
             { pDrive, 0.2f }, { pVelDrive, 0.0f },
             { pVibRate, 4.8f }, { pVibDepth, 0.0f }, { pMwVibrato, 0.3f }, { pMwBuild, 0.0f }, { pPbRange, 2 },

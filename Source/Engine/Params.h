@@ -71,7 +71,7 @@ inline const std::array<ParamInfo, kNumParams>& paramTable()
         { "noise",      "Noise",             0, 1, 0.0f,   ParamKind::Float,  "",    0 },
 
         { "poly",       "Poly Mode",         0, 1, 0,      ParamKind::Bool,   "",    0 },
-        { "glide",      "Glide",             0, 1000, 30,  ParamKind::Float,  "ms",  80 },
+        { "glide",      "Glide",             0, 2000, 30,  ParamKind::Float,  "ms",  120 },
         { "legatoGlide","Glide Legato Only", 0, 1, 1,      ParamKind::Bool,   "",    0 },
 
         { "ampA",       "Amp Attack",        0.5f, 2000, 3,    ParamKind::Float, "ms", 60 },
