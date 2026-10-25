@@ -619,7 +619,7 @@ public:
             float wetL = 0.0f, wetR = 0.0f;
             {
                 dlySamplesSm += 0.0005f * (dlyTarget - dlySamplesSm);
-                const float dMix = clampf (p[pDlyMix] + b * 0.25f, 0.0f, 1.0f);
+                const float dMix = clampf (p[pDlyMix] + b * 0.25f, 0.0f, 1.5f);
                 const float fb = clampf (p[pDlyFb] + b * 0.15f, 0.0f, 0.95f);
                 const float yL = readDelay (dlyL, dlySamplesSm);
                 const float yR = readDelay (dlyR, dlySamplesSm);
@@ -695,6 +695,7 @@ private:
     float lastRevL = 0.0f, lastRevR = 0.0f;
     uint64_t sampleClock = 0, lastNoteOnClock = 0;
     std::vector<double> prevPitches;
+    std::vector<int> currentChord;
     std::vector<bool> prevUsed;
     bool pedal = false;
 
@@ -769,18 +770,23 @@ private:
 
     void polyNoteOn (int note, float vel)
     {
-        // A new chord starts when notes are more than ~60 ms apart.
-        // Snapshot what is sounding now: the new chord's notes glide out of it.
+        // A new chord starts when notes are more than ~60 ms apart. The chord you played before
+        // is remembered however long you held it: the new chord's notes glide out of it.
         const uint64_t gap = sampleClock - lastNoteOnClock;
         if (gap > (uint64_t) (0.06f * sr))
         {
             prevPitches.clear();
-            if (gap < (uint64_t) (2.5f * sr))
-                for (auto& v : voices)
-                    if (v.active && (v.amp.stage != Env::Idle || v.epEnv > 0.02f))
-                        prevPitches.push_back (v.pitch);
+            for (int n : currentChord)
+            {
+                double from = (double) n;
+                for (auto& v : voices)                 // still sounding (maybe mid-glide)? start from where it is now
+                    if (v.active && v.note == n) { from = v.pitch; break; }
+                prevPitches.push_back (from);
+            }
             prevUsed.assign (prevPitches.size(), false);
+            currentChord.clear();
         }
+        currentChord.push_back (note);
         lastNoteOnClock = sampleClock;
 
         Voice* chosen = nullptr;

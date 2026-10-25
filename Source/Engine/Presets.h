@@ -75,7 +75,7 @@ inline const std::vector<Preset>& factoryPresets()
             { pAmpA, 6 }, { pCutoff, 3500 }, { pKeyTrack, 0.5f }, { pFiltEnv, 0.3f },
             { pDrive, 0.25f }, { pVelDrive, 0.3f }, { pVibDepth, 0.12f }, { pVibRate, 5.0f },
             { pMwVibrato, 1.0f }, { pPbRange, 2 },
-            { pDlyTime, 2 }, { pDlyFb, 0.46f }, { pDlyMix, 1.0f }, { pDlyPingPong, 1 }, { pDlyHP, 220 }, { pDlyLP, 8000 }, { pDlyDuck, 0.0f }, { pDlyDuo, 1.0f }, { pRevMix, 0.16f }, { pOutput, -8.9f } } },
+            { pDlyTime, 2 }, { pDlyFb, 0.45f }, { pDlyMix, 1.35f }, { pDlyPingPong, 1 }, { pDlyHP, 180 }, { pDlyLP, 9500 }, { pDlyDuck, 0.0f }, { pDlyDuo, 1.0f }, { pRevMix, 0.16f }, { pOutput, -11.2f } } },
 
         // 05 — airy flute synth
         { "FLUTE SYNTH", "Doux · aérien · effet duo", {
@@ -84,7 +84,7 @@ inline const std::vector<Preset>& factoryPresets()
             { pAmpA, 45 }, { pAmpR, 500 }, { pCutoff, 2600 }, { pReso, 0.05f }, { pKeyTrack, 0.7f },
             { pFiltEnv, 0.3f }, { pFiltA, 60 }, { pDrive, 0.0f }, { pVelDrive, 0.0f },
             { pVibDepth, 0.1f }, { pVibDelay, 250 }, { pMwVibrato, 1.0f },
-            { pDlyTime, 2 }, { pDlyFb, 0.32f }, { pDlyMix, 0.85f }, { pDlyPingPong, 1 }, { pDlyHP, 220 }, { pDlyLP, 8000 }, { pDlyDuck, 0.0f }, { pDlyDuo, 1.0f }, { pRevSize, 0.85f }, { pRevMix, 0.18f }, { pOutput, -8.3f } } },
+            { pDlyTime, 2 }, { pDlyFb, 0.45f }, { pDlyMix, 1.35f }, { pDlyPingPong, 1 }, { pDlyHP, 180 }, { pDlyLP, 9500 }, { pDlyDuck, 0.0f }, { pDlyDuo, 1.0f }, { pRevSize, 0.85f }, { pRevMix, 0.18f }, { pOutput, -10.0f } } },
 
         // 06 — whistle
         { "WHISTLE", "Sifflé · aigu", {
@@ -146,7 +146,7 @@ inline const std::vector<Preset>& factoryPresets()
             { pDrive, 0.08f }, { pVelDrive, 0.0f },
             { pVibDepth, 0.0f }, { pMwVibrato, 0.0f }, { pPbRange, 2 },
             { pDlyTime, 5 }, { pDlyFb, 0.18f }, { pDlyMix, 0.06f }, { pDlyDuck, 0.5f },
-            { pRevSize, 0.88f }, { pRevDamp, 0.55f }, { pRevMix, 0.26f }, { pWidth, 1.2f }, { pComp, 0.4f }, { pOutput, -7.2f } } },
+            { pRevSize, 0.88f }, { pRevDamp, 0.55f }, { pRevMix, 0.26f }, { pWidth, 1.2f }, { pComp, 0.4f }, { pOutput, -7.1f } } },
 
         // 12 — The Glide: a soft sine glide pad (in the spirit of a "sine one" glide pad):
         //      round, warm, no bright edge; chords glide into each other (Glide knob = chord glide)
@@ -161,7 +161,7 @@ inline const std::vector<Preset>& factoryPresets()
             { pDrive, 0.2f }, { pVelDrive, 0.0f },
             { pVibRate, 4.8f }, { pVibDepth, 0.0f }, { pMwVibrato, 0.3f }, { pMwBuild, 0.0f }, { pPbRange, 2 },
             { pDlyTime, 5 }, { pDlyFb, 0.2f }, { pDlyMix, 0.05f }, { pDlyDuck, 0.5f },
-            { pRevSize, 0.85f }, { pRevDamp, 0.65f }, { pRevMix, 0.3f }, { pWidth, 1.3f }, { pComp, 0.5f }, { pOutput, -3.4f } } },
+            { pRevSize, 0.85f }, { pRevDamp, 0.65f }, { pRevMix, 0.3f }, { pWidth, 1.3f }, { pComp, 0.5f }, { pOutput, -3.3f } } },
     };
     return presets;
 }

@@ -104,7 +104,7 @@ inline const std::array<ParamInfo, kNumParams>& paramTable()
 
         { "dlyTime",    "Delay Time",        0, 6, 3,      ParamKind::Choice, "",   0 },
         { "dlyFb",      "Delay Feedback",    0, 0.95f, 0.35f, ParamKind::Float, "", 0 },
-        { "dlyMix",     "Delay",             0, 1, 0.2f,   ParamKind::Float, "",   0 },
+        { "dlyMix",     "Delay",             0, 1.5f, 0.2f, ParamKind::Float, "",   0 },
         { "dlyPingPong","Ping-Pong",         0, 1, 1,      ParamKind::Bool,  "",   0 },
         { "dlyHP",      "Delay Low Cut",     20, 2000, 300,  ParamKind::Float, "Hz", 300 },
         { "dlyLP",      "Delay High Cut",    1000, 20000, 7000, ParamKind::Float, "Hz", 6000 },
