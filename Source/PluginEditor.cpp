@@ -378,7 +378,7 @@ void SynthPanel::refresh()
     screen.setInfo (info);
 
     // On The Glide, the Glide knob sets the chord glide: relabel it and light it up
-    const bool isGlide = juce::String (pr.name) == "THE GLIDE";
+    const bool isGlide = juce::String (pr.name).endsWith ("GLIDE");
     if (isGlide != glideMode || prog != shownProgram)
     {
         glideMode = isGlide;

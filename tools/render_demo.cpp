@@ -238,8 +238,19 @@ int main (int argc, char** argv)
     }
     {
         std::vector<float> L, R;
+        render (presets[10], glideSong(), 72.0, 31.0, L, R, sr);
+        writeWav (outDir + "/D-SYNTH_Elle_Glide.wav", L, R, (int) sr);
+    }
+    {
+        std::vector<float> L, R;
         render (presets[11], glideSong(), 72.0, 31.0, L, R, sr);
         writeWav (outDir + "/D-SYNTH_The_Glide.wav", L, R, (int) sr);
+    }
+    {
+        std::vector<float> L, R;
+        render (presets[3], risingRunSong(), bpm, 23.0, L, R, sr);
+        render (presets[4], risingRunSong(), bpm, 23.0, L, R, sr);
+        writeWav (outDir + "/D-SYNTH_Soft_Sine_Flute_Duo.wav", L, R, (int) sr);
     }
     {
         std::vector<float> L, R;

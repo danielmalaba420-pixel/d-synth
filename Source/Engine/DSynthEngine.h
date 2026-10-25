@@ -157,7 +157,7 @@ struct Voice
     // electric piano layer (FM tine model)
     double epCar = 0, epMod = 0, epTine = 0, epLow = 0, epCar2 = 0, epMod2 = 0;
     Osc shim1, shim2;                // shimmer layer of the pad (+1 and +2 octaves)
-    OnePole epToneL, epToneR;
+    OnePole epToneL, epToneR, rhTone;
     float epToneCoef = 0.3f;
     float shimLfo = 0.0f, shimRate = 0.4f;
     float epEnv = 0, epBarkEnv = 0, epTineEnv = 0, epAtk = 0;
@@ -410,6 +410,7 @@ public:
         const bool keysMode = p[pEngine] > 0.5f;
         const bool epModelEP = p[pEpModel] > 0.5f;
         const float shimmer = p[pShimmer];
+        const float rhodesMix = p[pRhodesMix];
         const float epLevel = p[pEpLevel], epBark = p[pEpBark], padLevel = p[pPadLevel];
         const float barkCoef = std::exp (-dt / 0.16f);
         const float tineCoef = std::exp (-dt / 0.045f);
@@ -492,6 +493,18 @@ public:
                         // soft tone control: rounds off the top so it never gets harsh
                         epL = v.epToneL.lp (epL, v.epToneCoef);
                         epR = v.epToneR.lp (epR, v.epToneCoef);
+
+                        // optional Rhodes layer underneath: warm tine with a little bark, kept low
+                        if (rhodesMix > 0.001f)
+                        {
+                            const float rIdx = 0.45f + (0.3f + 1.4f * vel * vel) * v.epBarkEnv;
+                            float rh = std::sin (tw * (float) v.epCar + rIdx * std::sin (tw * (float) v.epMod))
+                                     + std::sin (tw * (float) v.epLow) * 0.3f;
+                            rh = std::tanh (rh * v.epEnv * v.epAtk * 1.4f) * 0.6f;
+                            rh = v.rhTone.lp (rh, v.epToneCoef * 0.7f);
+                            epL += rh * rhodesMix;
+                            epR += rh * rhodesMix;
+                        }
                     }
                     else
                     {

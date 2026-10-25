@@ -30,7 +30,7 @@ enum ParamId : int
     // Master
     pWidth, pComp, pOutput,
     // Keys engine (electric piano layer + pad layer + chord glide)
-    pEngine, pEpLevel, pEpBark, pEpDecay, pEpTrem, pMwTrem, pPadLevel, pScoop, pEpModel, pShimmer,
+    pEngine, pEpLevel, pEpBark, pEpDecay, pEpTrem, pMwTrem, pPadLevel, pScoop, pEpModel, pShimmer, pRhodesMix,
     kNumParams
 };
 
@@ -129,6 +129,7 @@ inline const std::array<ParamInfo, kNumParams>& paramTable()
         { "scoop",      "Glide Scoop",      -5, 0, 0.0f,   ParamKind::Float, "st", 0 },
         { "epModel",    "Keys Model",        0, 1, 0,      ParamKind::Choice, "",  0 },
         { "shimmer",    "Pad Shimmer",       0, 1, 0.0f,   ParamKind::Float, "",   0 },
+        { "rhodesMix",  "Rhodes Layer",      0, 1, 0.0f,   ParamKind::Float, "",   0 },
     } };
     return t;
 }

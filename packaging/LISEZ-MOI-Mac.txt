@@ -6,8 +6,8 @@ D-SYNTH by Danova — Mac (Apple Silicon et Intel)
    Autres logiciels (Ableton, Studio One, FL Studio...) : VST3 > D-SYNTH.
 3. Sans logiciel : ouvre D-SYNTH dans le dossier Applications.
 
-Les 12 sons : Rising Run, The Run, Gospel Square, Worship Dotted, Soft Sine,
-Flute Synth, Whistle, Supersaw, Brass Lead, Afro Pluck, Vintage 80, The Glide.
+Les 12 sons : Rising Run, The Run, Gospel Square, Soft Sine, Flute Synth, Whistle,
+Supersaw, Brass Lead, Afro Pluck, Vintage 80, Elle Glide, The Glide.
 
 Molette : Build sur Rising Run, tremolo sur The Glide, vibrato sur les autres.
-CHORD GLIDE (sur The Glide) : vitesse du glissement entre les accords.
+CHORD GLIDE (sur Elle Glide et The Glide) : vitesse du glissement entre les accords.
