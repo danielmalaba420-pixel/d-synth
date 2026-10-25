@@ -17,6 +17,8 @@ jobs:
   mac:
     name: macOS installer (.pkg, Apple Silicon + Intel)
     runs-on: macos-14
+    permissions:
+      contents: write
     env:
       HAS_CERTS: ${{ secrets.MAC_CERTS_P12 != '' }}
     steps:
@@ -46,13 +48,21 @@ jobs:
           NOTARY_PASSWORD: ${{ secrets.NOTARY_PASSWORD }}
         run: |
           lipo -info build/DSynth_artefacts/Release/AU/D-SYNTH.component/Contents/MacOS/D-SYNTH
-          packaging/mac/build_pkg.sh "$VERSION" build/DSynth_artefacts/Release dist
+          ls -la build/DSynth_artefacts/Release build/DSynth_artefacts/Release/*
+          packaging/mac/build_pkg.sh "$VERSION" build/DSynth_artefacts/Release dist 2>&1 | tee pkg.log
+          exit ${PIPESTATUS[0]}
       - name: Test the installer on this Mac
         run: |
           sudo installer -pkg "dist/D-SYNTH-$VERSION-Mac.pkg" -target /
           ls -d /Library/Audio/Plug-Ins/Components/D-SYNTH.component /Library/Audio/Plug-Ins/VST3/D-SYNTH.vst3 /Applications/D-SYNTH.app
           killall -9 AudioComponentRegistrar 2>/dev/null || true
           auval -v aumu Dsyn Dnva | tail -4
+      - name: Send the log back if something failed
+        if: failure()
+        run: |
+          mkdir -p ci && cp pkg.log ci/ 2>/dev/null || echo "no pkg.log" > ci/pkg.log
+          cd ci && git init -q && git checkout -q -b ci-logs && git add . && git -c user.name=ci -c user.email=ci@users.noreply.github.com commit -qm log
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" ci-logs
       - uses: actions/upload-artifact@v4
         with:
           name: D-SYNTH-Mac
