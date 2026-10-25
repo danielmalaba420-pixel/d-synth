@@ -5,6 +5,7 @@
 #   INSTALLER_SIGN_ID "Developer ID Installer: Name (TEAMID)"
 #   NOTARY_APPLE_ID, NOTARY_TEAM_ID, NOTARY_PASSWORD (app-specific password)
 set -euo pipefail
+set -x
 VERSION="$1"; ART="$2"; OUT="$3"
 HERE="$(cd "$(dirname "$0")" && pwd)"
 WORK="$(mktemp -d)"
@@ -37,10 +38,12 @@ component_pkg vst3 vst3 "/Library/Audio/Plug-Ins/VST3"
 component_pkg app  app  "/Applications"
 
 sed "s/@VERSION@/$VERSION/g" "$HERE/distribution.xml" > "$WORK/distribution.xml"
-SIGN_ARGS=()
-[ -n "${INSTALLER_SIGN_ID:-}" ] && SIGN_ARGS=(--sign "$INSTALLER_SIGN_ID")
 PKG="$OUT/D-SYNTH-$VERSION-Mac.pkg"
-productbuild --distribution "$WORK/distribution.xml" --package-path "$WORK" --resources "$HERE/resources" "${SIGN_ARGS[@]}" "$PKG"
+if [ -n "${INSTALLER_SIGN_ID:-}" ]; then
+  productbuild --distribution "$WORK/distribution.xml" --package-path "$WORK" --resources "$HERE/resources" --sign "$INSTALLER_SIGN_ID" "$PKG"
+else
+  productbuild --distribution "$WORK/distribution.xml" --package-path "$WORK" --resources "$HERE/resources" "$PKG"
+fi
 
 if [ -n "${NOTARY_APPLE_ID:-}" ] && [ -n "${INSTALLER_SIGN_ID:-}" ]; then
   xcrun notarytool submit "$PKG" --apple-id "$NOTARY_APPLE_ID" --team-id "$NOTARY_TEAM_ID" --password "$NOTARY_PASSWORD" --wait

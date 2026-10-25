@@ -83,8 +83,9 @@ jobs:
         shell: pwsh
         run: |
           Start-Process -Wait -FilePath "dist\D-SYNTH-$env:VERSION-Windows-Setup.exe" -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART"
-          Test-Path "C:\Program Files\Common Files\VST3\D-SYNTH.vst3\Contents\x86_64-win\D-SYNTH.vst3"
-          Test-Path "C:\Program Files\Danova\D-SYNTH\D-SYNTH.exe"
+          foreach ($f in @("C:\Program Files\Common Files\VST3\D-SYNTH.vst3\Contents\x86_64-win\D-SYNTH.vst3", "C:\Program Files\Danova\D-SYNTH\D-SYNTH.exe")) {
+            if (-not (Test-Path $f)) { throw "Missing after install: $f" } else { Write-Host "OK $f" }
+          }
       - uses: actions/upload-artifact@v4
         with:
           name: D-SYNTH-Windows
