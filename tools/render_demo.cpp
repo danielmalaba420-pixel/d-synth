@@ -155,7 +155,7 @@ static Song glideSong()
     double t = 0.0;
     for (size_t c = 0; c < chords.size(); ++c)
     {
-        const double len = (c % 4 == 3) ? 3.7 : 1.85;   // slight gap so each new chord glides in
+        const double len = (c % 4 == 3) ? 3.9 : 1.95;   // legato: each new chord glides out of the previous one
         int k = 0;
         for (int n : chords[c]) { s.note (t + 0.012 * k, len, n, 0.62f + 0.05f * (float) (k % 3)); ++k; }
         t += (c % 4 == 3) ? 4.0 : 2.0;

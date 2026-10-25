@@ -148,20 +148,22 @@ inline const std::vector<Preset>& factoryPresets()
             { pDlyTime, 5 }, { pDlyFb, 0.18f }, { pDlyMix, 0.06f }, { pDlyDuck, 0.5f },
             { pRevSize, 0.88f }, { pRevDamp, 0.55f }, { pRevMix, 0.26f }, { pWidth, 1.2f }, { pComp, 0.4f }, { pOutput, -7.1f } } },
 
-        // 12 — The Glide: a soft sine glide pad (in the spirit of a "sine one" glide pad):
-        //      round, warm, no bright edge; chords glide into each other (Glide knob = chord glide)
-        { "THE GLIDE", "Glide pad sinus lourd · doux et rond", {
-            { pEngine, 0 }, { pShimmer, 0.0f }, { pPadLevel, 1.0f }, { pScoop, -2.0f },
-            { pOscAWave, 2 }, { pUnison, 3 }, { pDetune, 6 }, { pSpread, 0.85f },
-            { pOscBWave, 2 }, { pOscBLevel, 0.55f }, { pOscBSemi, -12 }, { pOscBDetune, 3 },
-            { pSubLevel, 0.25f }, { pSubOct, 0 }, { pNoise, 0.0f },
-            { pPoly, 1 }, { pGlide, 900 },
-            { pAmpA, 120 }, { pAmpD, 2000 }, { pAmpS, 1.0f }, { pAmpR, 900 }, { pVelSens, 0.3f },
-            { pCutoff, 1150 }, { pReso, 0.0f }, { pKeyTrack, 0.3f }, { pFiltEnv, 0.0f }, { pVelCutoff, 0.0f },
-            { pDrive, 0.2f }, { pVelDrive, 0.0f },
-            { pVibRate, 4.8f }, { pVibDepth, 0.0f }, { pMwVibrato, 0.3f }, { pMwBuild, 0.0f }, { pPbRange, 2 },
-            { pDlyTime, 5 }, { pDlyFb, 0.2f }, { pDlyMix, 0.05f }, { pDlyDuck, 0.5f },
-            { pRevSize, 0.85f }, { pRevDamp, 0.65f }, { pRevMix, 0.3f }, { pWidth, 1.3f }, { pComp, 0.5f }, { pOutput, -3.3f } } },
+        // 12 — The Glide: played with chords. A warm EP layered on a deep pad; when you change chords,
+        //      every note (EP and pad together) glides R&B-style into the new chord. Glide knob = glide time.
+        { "THE GLIDE", "EP + deep pad · glide d'accords R&B", {
+            { pEngine, 1 }, { pEpModel, 1 }, { pEpLevel, 0.9f }, { pEpBark, 0.22f }, { pEpDecay, 6.0f },
+            { pRhodesMix, 0.0f }, { pEpTrem, 0.0f }, { pMwTrem, 0.5f },
+            { pPadLevel, 0.55f }, { pShimmer, 0.0f }, { pScoop, -2.0f },
+            { pOscAWave, 0 }, { pUnison, 5 }, { pDetune, 11 }, { pSpread, 0.9f },
+            { pOscBWave, 2 }, { pOscBLevel, 0.7f }, { pOscBSemi, -12 }, { pOscBDetune, 3 },
+            { pSubLevel, 0.0f }, { pNoise, 0.0f },
+            { pPoly, 1 }, { pGlide, 420 },
+            { pAmpA, 280 }, { pAmpD, 2000 }, { pAmpS, 1.0f }, { pAmpR, 600 }, { pVelSens, 0.35f },
+            { pCutoff, 430 }, { pReso, 0.08f }, { pKeyTrack, 0.35f }, { pFiltEnv, 0.0f }, { pVelCutoff, 0.0f },
+            { pDrive, 0.15f }, { pVelDrive, 0.0f },
+            { pVibRate, 4.8f }, { pVibDepth, 0.0f }, { pMwVibrato, 0.0f }, { pMwBuild, 0.0f }, { pPbRange, 2 },
+            { pDlyTime, 5 }, { pDlyFb, 0.2f }, { pDlyMix, 0.06f }, { pDlyDuck, 0.5f },
+            { pRevSize, 0.84f }, { pRevDamp, 0.6f }, { pRevMix, 0.24f }, { pWidth, 1.2f }, { pComp, 0.5f }, { pOutput, -5.9f } } },
     };
     return presets;
 }
