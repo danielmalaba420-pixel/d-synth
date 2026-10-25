@@ -1,0 +1,36 @@
++ VERSION=1.0.0
++ ART=build/DSynth_artefacts/Release
++ OUT=dist
++++ dirname packaging/mac/build_pkg.sh
+++ cd packaging/mac
+++ pwd
++ HERE=/Users/runner/work/d-synth/d-synth/packaging/mac
+++ mktemp -d
++ WORK=/var/folders/s6/5hzmn6lx4dz5nxs7k_0slzph0000gn/T/tmp.r02e10SajR
++ mkdir -p dist
++ stage au build/DSynth_artefacts/Release/AU/D-SYNTH.component
++ mkdir -p /var/folders/s6/5hzmn6lx4dz5nxs7k_0slzph0000gn/T/tmp.r02e10SajR/au
++ cp -R build/DSynth_artefacts/Release/AU/D-SYNTH.component /var/folders/s6/5hzmn6lx4dz5nxs7k_0slzph0000gn/T/tmp.r02e10SajR/au/
++ stage vst3 build/DSynth_artefacts/Release/VST3/D-SYNTH.vst3
++ mkdir -p /var/folders/s6/5hzmn6lx4dz5nxs7k_0slzph0000gn/T/tmp.r02e10SajR/vst3
++ cp -R build/DSynth_artefacts/Release/VST3/D-SYNTH.vst3 /var/folders/s6/5hzmn6lx4dz5nxs7k_0slzph0000gn/T/tmp.r02e10SajR/vst3/
++ stage app build/DSynth_artefacts/Release/Standalone/D-SYNTH.app
++ mkdir -p /var/folders/s6/5hzmn6lx4dz5nxs7k_0slzph0000gn/T/tmp.r02e10SajR/app
++ cp -R build/DSynth_artefacts/Release/Standalone/D-SYNTH.app /var/folders/s6/5hzmn6lx4dz5nxs7k_0slzph0000gn/T/tmp.r02e10SajR/app/
++ for b in '"$WORK"/au/*.component' '"$WORK"/vst3/*.vst3' '"$WORK"/app/*.app'
++ '[' -n '' ']'
++ codesign --force --deep --sign - /var/folders/s6/5hzmn6lx4dz5nxs7k_0slzph0000gn/T/tmp.r02e10SajR/au/D-SYNTH.component
+/var/folders/s6/5hzmn6lx4dz5nxs7k_0slzph0000gn/T/tmp.r02e10SajR/au/D-SYNTH.component: replacing existing signature
++ for b in '"$WORK"/au/*.component' '"$WORK"/vst3/*.vst3' '"$WORK"/app/*.app'
++ '[' -n '' ']'
++ codesign --force --deep --sign - /var/folders/s6/5hzmn6lx4dz5nxs7k_0slzph0000gn/T/tmp.r02e10SajR/vst3/D-SYNTH.vst3
+/var/folders/s6/5hzmn6lx4dz5nxs7k_0slzph0000gn/T/tmp.r02e10SajR/vst3/D-SYNTH.vst3: replacing existing signature
++ for b in '"$WORK"/au/*.component' '"$WORK"/vst3/*.vst3' '"$WORK"/app/*.app'
++ '[' -n '' ']'
++ codesign --force --deep --sign - /var/folders/s6/5hzmn6lx4dz5nxs7k_0slzph0000gn/T/tmp.r02e10SajR/app/D-SYNTH.app
+/var/folders/s6/5hzmn6lx4dz5nxs7k_0slzph0000gn/T/tmp.r02e10SajR/app/D-SYNTH.app: replacing existing signature
++ component_pkg au au /Library/Audio/Plug-Ins/Components
++ local plist=/var/folders/s6/5hzmn6lx4dz5nxs7k_0slzph0000gn/T/tmp.r02e10SajR/au.plist
++ pkgbuild --analyze --root /var/folders/s6/5hzmn6lx4dz5nxs7k_0slzph0000gn/T/tmp.r02e10SajR/au /var/folders/s6/5hzmn6lx4dz5nxs7k_0slzph0000gn/T/tmp.r02e10SajR/au.plist
++ /usr/libexec/PlistBuddy -c 'Set :0:BundleIsRelocatable false' /var/folders/s6/5hzmn6lx4dz5nxs7k_0slzph0000gn/T/tmp.r02e10SajR/au.plist
+Set: Entry, ":0:BundleIsRelocatable", Does Not Exist
