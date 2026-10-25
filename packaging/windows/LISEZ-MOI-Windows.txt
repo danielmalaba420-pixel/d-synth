@@ -1,0 +1,18 @@
+D-SYNTH by Danova — Windows (64 bits)
+
+Merci pour votre achat !
+
+Où trouver D-SYNTH :
+- FL Studio : Options > Manage plugins > Find plugins, puis D-SYNTH dans la liste des instruments.
+- Ableton Live, Studio One, Cubase, Reaper, Bitwig : relancez le logiciel, D-SYNTH apparaît dans les instruments VST3.
+- Sans logiciel : menu Démarrer > D-SYNTH.
+
+Le plugin est installé dans : C:\Program Files\Common Files\VST3\D-SYNTH.vst3
+Pour désinstaller : Paramètres Windows > Applications > D-SYNTH by Danova > Désinstaller.
+
+Les 12 sons : Rising Run, The Run, Gospel Square, Soft Sine, Flute Synth, Whistle,
+Supersaw, Finger Bass, Afro Pluck, String Glide, Elle Glide, Glide Sine.
+
+---
+Thank you for your purchase! D-SYNTH is installed as a VST3 instrument
+(C:\Program Files\Common Files\VST3) and as a standalone app (Start menu).
