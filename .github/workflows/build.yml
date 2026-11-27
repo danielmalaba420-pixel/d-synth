@@ -100,8 +100,8 @@ jobs:
           $art = (Resolve-Path "build/DSynth_artefacts/Release").Path
           New-Item -ItemType Directory -Force dist | Out-Null
           $out = (Resolve-Path "dist").Path
-          Push-Location packaging/windows
           $smp = (Resolve-Path "Samples").Path
+          Push-Location packaging/windows
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DAppVersion=$env:VERSION" "/DArtDir=$art" "/DSmpDir=$smp" "/DOutDir=$out" D-SYNTH.iss
           Pop-Location
           Get-ChildItem dist
