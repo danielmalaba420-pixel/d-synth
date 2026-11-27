@@ -44,7 +44,6 @@ enum ParamId : int
     // v2: tempo-synced riser
     pRiser, pRiserBars, pRiserPitch,
     pRevHall, pArpPad, pArpPan, pArpDust, pRevPre,
-    pWaFade,
     kNumParams
 };
 
@@ -188,7 +187,6 @@ inline const std::array<ParamInfo, kNumParams>& paramTable()
         { "arpPan",     "Arp Left-Right",    0, 1, 0.0f,   ParamKind::Float,  "",   0 },
         { "arpDust",    "Arp Stardust",      0, 1, 0.0f,   ParamKind::Float,  "",   0 },
         { "revPre",     "Reverb Pre-delay",  0, 80, 0,     ParamKind::Float,  "ms", 0 },
-        { "waFade",     "Pad Key Crossfade", 0.1f, 8, 2,   ParamKind::Float,  "s",  0 },
     } };
     return t;
 }

@@ -532,10 +532,6 @@ public:
 
     void noteOn (int note, float vel)
     {
-        // W-A pad: the key you press chooses the take. Keys pressed together (within 25 ms) count as one gesture
-        // and its lowest key wins, so a chord played as one block never jumps to another tonality.
-        if (waEvalIn < 0) waPending = note; else waPending = std::min (waPending, note);
-        waEvalIn = (int) (0.025f * sr);
         if (keysDown == 0) { riserSamples = 0; percEnv = 1.0f; }   // a new phrase: riser restarts, organ percussion fires
         ++keysDown;
         if (values[pArp] > 0.5f && std::lround (values[pEngine]) != 3) { arpAdd (note, vel); return; }
@@ -607,7 +603,7 @@ public:
     void soundChanged()
     {
         allNotesOff();
-        for (auto& sl : wa) { sl.key = -1; sl.g = 0.0f; sl.target = 0.0f; } waGate = 0.0f; waKey = -1; waEvalIn = -1; waPending = 128;
+        
         for (auto& v : voices) if (v.active) v.killing = true;
     }
 
@@ -689,9 +685,6 @@ public:
         const bool fxMode = engineMode == 3;
         const float smpLevel = (p[pSmpSet] > 0.5f && samplesReady()) ? p[pSmpLevel] : 0.0f;
         const bool organSmp = smpLevel > 0.0f && std::lround (p[pSmpSet]) == 4;
-        const bool waOn = smpLevel > 0.0f && std::lround (p[pSmpSet]) == 7;
-        waLevel = smpLevel * (1.0f + 0.5f * mod * p[pMwPad]);
-        if (! waOn) { for (auto& sl : wa) { sl.key = -1; sl.g = 0.0f; sl.target = 0.0f; } waGate = 0.0f; waKey = -1; }
         const float orgLevel = p[pOrgLevel];
         const float padGain = clampf (padLevel + mod * p[pMwPad], 0.0f, 1.5f);
         const bool riserOn = p[pRiser] > 0.5f;
@@ -1118,7 +1111,6 @@ public:
                 sumR += eqAirR.process (eqMudR.process (eqWarmR.process (strR)));
             }
 
-            if (waOn) { float wl, wr; waTick (wl, wr); sumL = wl; sumR = wr; padBus = 0.0f; }   // The Prayer = Dan's takes only, no synth on top
 
             if (orgLevel > 0.0001f || organSmp)
             {
@@ -1464,7 +1456,7 @@ private:
         const SampleBank* b = bank.load();
         const int set = std::clamp ((int) std::lround (values[pSmpSet]), 0, 7);
         v.smpTrans = set == 5 ? 24.0f : 0.0f;
-        if (b == nullptr || b->empty() || set == 0 || set == 7 || values[pSmpLevel] <= 0.0f) return;   // 7: the W-A texture is not per note
+        if (b == nullptr || b->empty() || set == 0 || values[pSmpLevel] <= 0.0f) return;
         const int n = v.note;
         const float velScale = set == 1 ? 0.72f : 1.0f;   // strings: the soft (warm) layer unless you really dig in
         const int vel = std::clamp ((int) std::lround (v.velocity * 127.0f * velScale), 1, 127);
@@ -1486,6 +1478,7 @@ private:
         else if (set == 6)   // orchestra seating: violins left, celli right; the film layer brings air, more in the upper register
             ls = { { kDanStrings, 1.0f, clampf ((60.0f - x) / 40.0f, -0.4f, 0.4f) },
                    { kDanFilm, 0.35f + 0.4f * ramp (x, 55, 75), clampf ((60.0f - x) / 40.0f, -0.4f, 0.4f) * 0.7f } };
+        else if (set == 7) ls = { { kWaPad, 1.0f, 0.0f } };   // Dan's Worship Atmosphere, played note by note (The Prayer)
         else ls = { { kGlock, 1.0f, 0.0f } };
         float pw = 0.0f;
         for (size_t i = 0; i < ls.size() && i < 4; ++i) pw += ls[i].w * ls[i].w;
@@ -1504,62 +1497,6 @@ private:
     }
 
     // ---- organ bus: vibrato/chorus scanner, tube drive, rotary speaker (horn + drum, own speeds)
-    // ---- W-A worship pad (The Prayer): one whole take per tonality (Dan's Worship Atmosphere, recorded in all 12
-    //      keys). Each key = a pitch class: C (any octave) plays the C take, D the D take... A new key fades the
-    //      old take out while the new one comes in (equal-power, FONDU 0.1-8 s); the same key again changes
-    //      nothing. Release is soft and the sustain pedal holds the pad. Nothing else sounds with it.
-    struct WaSlot { int key = -1; float g = 0.0f, target = 0.0f; double pos = 0.0; };
-    WaSlot wa[3]; int waKey = -1, waEvalIn = -1, waPending = 128; float waGate = 0.0f, waLevel = 0.0f;
-    void waTick (float& outL, float& outR)
-    {
-        outL = outR = 0.0f;
-        const SampleBank* b = bank.load();
-        if (b == nullptr) return;
-        if (waEvalIn >= 0 && --waEvalIn < 0)
-        {
-            const int r = waPending % 12;
-            waPending = 128;
-            if (waGate < 0.001f) waKey = -1;           // pad fully faded: start the take again from its beginning
-            if (r != waKey)
-            {
-                waKey = r;
-                WaSlot* s = nullptr;
-                for (auto& sl : wa) if (sl.key == r && sl.g > 0.0f) s = &sl;
-                if (s == nullptr)
-                {
-                    s = &wa[0]; for (auto& sl : wa) if (sl.g < s->g) s = &sl;
-                    s->key = r; s->pos = 0.0; s->g = waGate < 0.01f ? 1.0f : 0.0f;
-                    if (waGate < 0.01f) for (auto& sl : wa) if (&sl != s) sl.g = 0.0f;
-                }
-                for (auto& sl : wa) sl.target = &sl == s ? 1.0f : 0.0f;
-            }
-        }
-        const bool anyHeld = keysDown > 0 || std::any_of (voices.begin(), voices.end(), [] (const Voice& v) { return v.active && v.sustained; });
-        const float gT = anyHeld && waKey >= 0 ? 1.0f : 0.0f;
-        const float atk = std::max (0.05f, values[pAmpA] * 0.001f), rel = std::max (0.3f, values[pAmpR] * 0.001f);
-        if (gT > waGate) waGate = std::min (1.0f, waGate + 1.0f / (atk * sr));
-        else waGate += (gT - waGate) * (1.0f - std::exp (-4.6f / (rel * sr)));   // ~ -40 dB after the release time
-        if (waGate < 1.0e-4f && gT == 0.0f) { waGate = 0.0f; for (auto& sl : wa) { sl.g = 0.0f; sl.key = -1; } return; }
-        const float step = 1.0f / (clampf (values[pWaFade], 0.1f, 8.0f) * sr);
-        float l = 0.0f, r = 0.0f;
-        for (auto& sl : wa)
-        {
-            sl.g += clampf (sl.target - sl.g, -step, step);
-            if (sl.key < 0 || sl.g <= 0.0f) continue;
-            const SampleZone* z = b->find (kWaPad, 60 + sl.key, 100);
-            if (z == nullptr || ! z->looped()) continue;
-            const double len = (double) (z->loopEnd - z->loopStart);
-            if (sl.pos >= (double) z->loopEnd) sl.pos -= len;
-            float a, c; z->read (sl.pos, a, c);
-            sl.pos += z->rate / sr;
-            const float th = sl.g * 1.5707963f;
-            const float g = std::sin (th);   // equal-power: the in/out ramps mirror each other, so sin/cos
-            l += a * g; r += c * g;
-        }
-        const float k = waGate * waLevel * 1.6f;
-        outL = l * k; outR = r * k;                   // the takes keep their own stereo, reverb and delay
-    }
-
     void organFx (float x, float side, float& outL, float& outR, int vibMode, float drv, float les)
     {
         if (vibMode > 0)
