@@ -43,7 +43,7 @@ enum ParamId : int
     pSmpSet, pSmpLevel, pSmpStac, pMwPad,
     // v2: tempo-synced riser
     pRiser, pRiserBars, pRiserPitch,
-    pRevHall,
+    pRevHall, pArpPad,
     kNumParams
 };
 
@@ -183,6 +183,7 @@ inline const std::array<ParamInfo, kNumParams>& paramTable()
         { "riserBars",  "Riser Length",      0, 3, 2,      ParamKind::Choice, "",   0 },
         { "riserPitch", "Riser Pitch",       0, 24, 12,    ParamKind::Float,  "st", 0 },
         { "revHall",    "Smooth Hall Reverb", 0, 1, 0,     ParamKind::Bool,   "",   0 },
+        { "arpPad",     "Pad Under Arp",     0, 1, 0.0f,   ParamKind::Float,  "",   0 },
     } };
     return t;
 }

@@ -220,6 +220,9 @@ struct Voice
     std::array<SmpPlay, 8> smp;
     int nSmp = 0;
     float smpTrans = 0.0f;   // glockenspiel sounds two octaves up
+    uint8_t mask = 3;
+    double glideMid = 60.0;  // first stage of the S-shaped (string-like) glide
+    float padFade = 1.0f;
     OnePole smpTiltL, smpTiltR;
     // FX kit
     int fxType = -1;
@@ -519,7 +522,7 @@ public:
         const bool keysMode = std::lround (values[pEngine]) == 1;
         for (auto& v : voices)
         {
-            if (! v.active || v.note != note || ! v.keyDown) continue;
+            if (! v.active || v.note != note || ! v.keyDown || v.mask != noteMask) continue;
             if (pedal)
             {
                 // pedal holds the sound; in Keys mode the pad still stops when you lift your fingers
@@ -561,6 +564,8 @@ public:
         const float subSemis = p[pSubOct] < 0.5f ? -12.0f : -24.0f;
         const float glideMs = p[pGlide];
         const double glideCoef = glideMs < 0.5f ? 0.0 : std::exp (-1.0 / (glideMs * 0.001 * sr * 0.33));
+        const double glideCoef2 = glideMs < 0.5f ? 0.0 : std::exp (-1.0 / (glideMs * 0.001 * sr * 0.2));
+        const bool sCurve = p[pSmpSet] > 0.5f && std::lround (p[pSmpSet]) == 1;   // sampled strings slide like a real section
         const float k = 2.0f - 1.96f * p[pReso];  // SVF damping
         const float pbSemis = bend * p[pPbRange];
 
@@ -684,8 +689,12 @@ public:
                 if (! v.active) continue;
 
                 // glide
-                if (glideCoef > 0.0) v.pitch = v.target + (v.pitch - v.target) * glideCoef;
-                else v.pitch = v.target;
+                if (glideCoef > 0.0)
+                {
+                    if (sCurve) { v.glideMid = v.target + (v.glideMid - v.target) * glideCoef2; v.pitch = v.glideMid + (v.pitch - v.glideMid) * glideCoef2; }
+                    else v.pitch = v.target + (v.pitch - v.target) * glideCoef;
+                }
+                else { v.pitch = v.target; v.glideMid = v.target; }
 
                 v.timeSinceOn += dt;
                 const float vibRamp = clampf ((v.timeSinceOn * 1000.0f - p[pVibDelay]) / 400.0f, 0.0f, 1.0f);
@@ -791,7 +800,9 @@ public:
 
                 if (padIdle) continue;
 
-                if (padGain > 0.0001f)
+                const float voicePad = v.mask == 1 ? p[pArpPad] : padGain;
+                if (v.mask == 1) v.padFade = std::min (1.0f, v.padFade + dt / 0.6f);
+                if (voicePad > 0.0001f && (v.mask & 1))
                 {
                     // oscillators
                     float vl = 0.0f, vr = 0.0f;
@@ -862,14 +873,14 @@ public:
                         vl += sh * mv; vr += sh * (1.55f - mv);
                     }
 
-                    const float gl = vl * aenv * velGain * padGain * riserGain;
-                    const float gr = vr * aenv * velGain * padGain * riserGain;
+                    const float gl = vl * aenv * velGain * voicePad * riserGain * (v.mask == 1 ? v.padFade : 1.0f);
+                    const float gr = vr * aenv * velGain * voicePad * riserGain * (v.mask == 1 ? v.padFade : 1.0f);
                     sumL += gl; sumR += gr;
                     padBus += 0.5f * (gl + gr);
                 }
 
                 // ---- sampled layer (strings / brass / piano), follows the gliding pitch
-                if (smpLevel > 0.0001f && v.nSmp > 0)
+                if (smpLevel > 0.0001f && v.nSmp > 0 && (v.mask & 2))
                 {
                     float sl = 0.0f, sr2 = 0.0f;
                     const double base = std::pow (2.0, (pitch + v.smpTrans - 60.0) / 12.0) / sr;
@@ -1062,6 +1073,7 @@ private:
     std::atomic<int> lastFxIdx { -1 };
     double hostPpq = 0.0; bool hostPlaying = false, transportValid = false;
     int keysDown = 0;
+    uint8_t noteMask = 3;
     std::vector<int> arpKeys, arpSounding;
     float arpVel = 0.8f; bool arpRunning = false;
     double arpToNext = 0.0, arpGateLeft = 0.0; int arpIdx = 0;
@@ -1089,14 +1101,17 @@ private:
     {
         if (std::find (arpKeys.begin(), arpKeys.end(), note) == arpKeys.end()) arpKeys.push_back (note);
         arpVel = vel;
+        if (values[pArpPad] > 0.0f) { noteMask = 1; playOn (note, vel * 0.8f); noteMask = 3; }
         if (! arpRunning) { arpRunning = true; arpIdx = 0; arpToNext = 0.0; }
     }
     void arpRemove (int note)
     {
         arpKeys.erase (std::remove (arpKeys.begin(), arpKeys.end(), note), arpKeys.end());
+        if (values[pArpPad] > 0.0f) { noteMask = 1; playOff (note); noteMask = 3; }
         if (arpKeys.empty()) { arpRelease(); arpRunning = false; }
     }
-    void arpRelease() { for (int n : arpSounding) playOff (n); arpSounding.clear(); }
+    uint8_t arpMask() const { return values[pArpPad] > 0.0f ? (uint8_t) 2 : (uint8_t) 3; }
+    void arpRelease() { noteMask = arpMask(); for (int n : arpSounding) playOff (n); arpSounding.clear(); noteMask = 3; }
     void arpTick (double stepSamples, double gateSamples)
     {
         if (arpGateLeft > 0.0) { arpGateLeft -= 1.0; if (arpGateLeft <= 0.0) arpRelease(); }
@@ -1108,6 +1123,7 @@ private:
         const int mode = std::clamp ((int) std::lround (values[pArpMode]), 0, 5);
         const float accent = (arpIdx % 4 == 0) ? 1.0f : 0.84f;
         const float vel = clampf (arpVel * accent, 0.05f, 1.0f);
+        noteMask = arpMask();
         if (mode == 3)
             for (int n : arpKeys) { playOn (n, vel); arpSounding.push_back (n); }
         else
@@ -1131,6 +1147,7 @@ private:
             const int n = seq[(size_t) (arpIdx % (int) seq.size())];
             playOn (n, vel); arpSounding.push_back (n);
         }
+        noteMask = 3;
         ++arpIdx;
         arpGateLeft = gateSamples;
     }
@@ -1671,7 +1688,7 @@ private:
         {
             // a common tone keeps sounding: the bow does not restart
             for (auto& v : voices)
-                if (v.active && v.note == note)
+                if (v.active && v.note == note && v.mask == noteMask)
                 {
                     v.keyDown = true; v.released = false; v.sustained = false; v.age = ++ageCounter;
                     if (v.amp.stage == Env::Release || v.amp.stage == Env::Idle) { v.amp.gate (true); v.filt.gate (true); }
@@ -1687,7 +1704,7 @@ private:
             if (best >= 0)
             {
                 auto& v = voices[(size_t) prevVoice[(size_t) best]];
-                if (v.active && std::abs (v.pitch - prevPitches[(size_t) best]) < 0.6)
+                if (v.active && v.mask == noteMask && std::abs (v.pitch - prevPitches[(size_t) best]) < 0.6)
                 {
                     prevUsed[(size_t) best] = true;
                     v.note = note; v.target = note;
@@ -1700,7 +1717,7 @@ private:
         }
         // sampled sounds without glide, and effects: a repeated note gets a fresh voice, the old one fades out
         const bool freshVoice = std::lround (values[pEngine]) == 3 || (sampled && values[pGlide] <= 0.5f);
-        for (auto& v : voices) if (v.active && v.note == note) { if (freshVoice) { if (v.keyDown || v.sustained) v.release(); } else { chosen = &v; break; } }
+        for (auto& v : voices) if (v.active && v.note == note && v.mask == noteMask) { if (freshVoice) { if (v.keyDown || v.sustained) v.release(); } else { chosen = &v; break; } }
         if (! chosen) for (auto& v : voices) if (! v.active) { chosen = &v; break; }
         if (! chosen)
         {
@@ -1714,6 +1731,9 @@ private:
         }
         chosen->age = ++ageCounter;
         chosen->start (note, vel, true, false, rng);
+        chosen->mask = noteMask;
+        chosen->padFade = noteMask == 1 ? 0.0f : 1.0f;
+        chosen->glideMid = chosen->pitch;
         epSetup (*chosen);
         smpSetup (*chosen);
         if (std::lround (values[pEngine]) == 3) fxSetup (*chosen);
@@ -1730,6 +1750,7 @@ private:
             }
             if (best >= 0) { chosen->pitch = prevPitches[(size_t) best]; prevUsed[(size_t) best] = true; }
             else chosen->pitch = note + values[pScoop];
+            chosen->glideMid = chosen->pitch;
         }
     }
 };

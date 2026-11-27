@@ -82,13 +82,25 @@ static Song songFor (const std::string& name)
         for (int c = 0; c < 4; ++c) { auto ch = kProg[(size_t) c]; std::vector<int> up (ch.begin() + 1, ch.begin() + 5); s.chord (c * 4.0, 3.95, up, 0.8f); }
         if (name == "ARP DRIVE") s.mod (8, 16, 0, 1);
     }
-    else if (name == "STRING DINSEI" || name == "THE PRAYER")
+    else if (name == "STRING DINSEI")
+    {
+        // chords that slide into each other, then a legato melody over a held chord
+        s.bpm = 66; s.beats = 28;
+        s.chord (0, 4.02, { 39, 51, 58, 63, 67 }, 0.6f);
+        s.chord (4, 4.02, { 36, 48, 55, 63, 67 }, 0.6f);
+        s.chord (8, 12.0, { 32, 44, 51, 56, 60 }, 0.55f);
+        const int mel[] = { 72, 75, 79, 80, 82, 79, 77, 75 }; const double dur[] = { 1.5, 1, 1, 1.5, 2, 1, 1, 3 };
+        double t = 8.5;
+        for (int i = 0; i < 8; ++i) { s.note (t, dur[i] + 0.06, mel[i], 0.6f); t += dur[i]; }
+        s.chord (20, 6.0, { 39, 51, 58, 63, 67, 75 }, 0.6f);
+        s.mod (0, 12, 0.2f, 0.75f); s.mod (12, 20, 0.75f, 0.35f);
+    }
+    else if (name == "THE PRAYER")
     {
         s.bpm = 66; s.beats = 26;
         const std::vector<std::vector<int>> v = { { 39, 51, 58, 63, 67 }, { 36, 48, 55, 63, 67 }, { 32, 44, 56, 60, 63 }, { 34, 46, 58, 62, 65 },
                                                   { 39, 51, 58, 63, 70 } };
         for (int c = 0; c < 5; ++c) s.chord (c * 4.0, c == 4 ? 7.0 : 4.02, v[(size_t) c], 0.6f);
-        s.chord (20.5, 4.5, { 75 }, 0.55f);
         s.mod (4, 14, 0.15f, 0.7f); s.mod (14, 20, 0.7f, 0.3f);
     }
     else if (name == "HOLY G")

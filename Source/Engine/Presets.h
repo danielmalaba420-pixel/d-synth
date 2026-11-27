@@ -113,14 +113,16 @@ inline const std::vector<Preset>& factoryPresets()
             { pRevSize, 0.8f }, { pRevMix, 0.2f }, { pWidth, 1.2f }, { pComp, 0.4f }, { pOutput, 5.0f } } },
 
         // 08
-        { "ARP CRYSTAL", "Arpège de glockenspiel · cristallin", "ARP", {
+        { "ARP CRYSTAL", "Glockenspiel en arpège · nappe derrière", "ARP", {
             { pArp, 1 }, { pArpRate, 0 }, { pArpMode, 4 }, { pArpOct, 2 }, { pArpGate, 0.5f },
-            { pSmpSet, 5 }, { pSmpLevel, 1.0f }, { pPadLevel, 0.0f },
+            { pSmpSet, 5 }, { pSmpLevel, 1.0f }, { pPadLevel, 0.0f }, { pArpPad, 0.32f },
+            { pOscAWave, 0 }, { pUnison, 5 }, { pDetune, 10 }, { pSpread, 0.9f }, { pOscBWave, 3 }, { pOscBLevel, 0.5f }, { pOscBSemi, -12 }, { pSubLevel, 0.0f },
+            { pCutoff, 750 }, { pReso, 0.0f }, { pKeyTrack, 0.3f }, { pFiltEnv, 0.0f }, { pVelCutoff, 0.0f }, { pDrive, 0.0f }, { pVelDrive, 0.0f }, { pChorus, 0.3f },
             { pPoly, 1 }, { pGlide, 0 },
             { pAmpA, 0.5f }, { pAmpD, 400 }, { pAmpS, 1.0f }, { pAmpR, 1500 }, { pVelSens, 0.5f },
             { pVibDepth, 0.0f }, { pMwVibrato, 0.0f }, { pMwBuild, 0.0f }, { pMwFilter, 0.0f },
             { pDlyTime, 3 }, { pDlyFb, 0.38f }, { pDlyMix, 0.42f }, { pDlyPingPong, 1 }, { pDlyHP, 600 }, { pDlyDuck, 0.15f },
-            { pRevHall, 1 }, { pRevSize, 0.8f }, { pRevDamp, 0.45f }, { pRevMix, 0.3f }, { pWidth, 1.2f }, { pComp, 0.3f }, { pOutput, -10.8f } } },
+            { pRevHall, 1 }, { pRevSize, 0.8f }, { pRevDamp, 0.45f }, { pRevMix, 0.3f }, { pWidth, 1.2f }, { pComp, 0.3f }, { pOutput, -11.0f } } },
 
         // 09
         { "ARP DRIVE", "Accord répété · saw lourd · avec BUILD", "ARP", {
@@ -150,13 +152,13 @@ inline const std::vector<Preset>& factoryPresets()
 
         // 11
         { "STRING DINSEI", "Vraies cordes d'orchestre · glides doux", "NAPPE", {
-            { pSmpSet, 1 }, { pSmpLevel, 1.0f }, { pPadLevel, 0.06f }, { pPoly, 1 }, { pGlide, 550 }, { pScoop, -1.0f },
+            { pSmpSet, 1 }, { pSmpLevel, 1.0f }, { pPadLevel, 0.06f }, { pPoly, 1 }, { pGlide, 850 }, { pScoop, -2.0f },
             { pOscAWave, 0 }, { pUnison, 5 }, { pDetune, 10 }, { pSpread, 0.9f }, { pOscBLevel, 0.0f }, { pSubLevel, 0.0f },
             { pAmpA, 380 }, { pAmpD, 2000 }, { pAmpS, 1.0f }, { pAmpR, 1000 }, { pVelSens, 0.4f },
             { pCutoff, 800 }, { pReso, 0.0f }, { pKeyTrack, 0.5f }, { pFiltEnv, 0.0f }, { pVelCutoff, 0.3f }, { pDrive, 0.0f }, { pVelDrive, 0.0f },
             { pMwFilter, 0.8f }, { pMwVibrato, 0.0f }, { pVibDepth, 0.0f }, { pPbRange, 2 },
             { pChorus, 0.0f }, { pDlyMix, 0.0f },
-            { pRevHall, 1 }, { pRevSize, 0.9f }, { pRevDamp, 0.55f }, { pRevMix, 0.36f }, { pWidth, 1.15f }, { pComp, 0.3f }, { pOutput, 0.4f } } },
+            { pRevHall, 1 }, { pRevSize, 0.9f }, { pRevDamp, 0.55f }, { pRevMix, 0.36f }, { pWidth, 1.15f }, { pComp, 0.3f }, { pOutput, -0.6f } } },
 
         // 12
         { "THE PRAYER", "Cordes très douces + nappe chaude", "NAPPE", {
