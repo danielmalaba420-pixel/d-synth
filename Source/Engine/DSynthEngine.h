@@ -541,7 +541,6 @@ public:
 
     void noteOff (int note)
     {
-        waEvalIn = (int) (0.025f * sr);
         keysDown = std::max (0, keysDown - 1);
         if (values[pArp] > 0.5f && std::lround (values[pEngine]) != 3) { arpRemove (note); return; }
         if (std::find (arpKeys.begin(), arpKeys.end(), note) != arpKeys.end()) arpRemove (note);
@@ -584,7 +583,7 @@ public:
 
     void sustainPedal (bool down)
     {
-        pedal = down; waEvalIn = (int) (0.025f * sr);
+        pedal = down;
         if (! down)
             for (auto& v : voices)
                 if (v.active && v.sustained) v.release();
@@ -1507,21 +1506,15 @@ private:
     //      the same place in the recording so the change is seamless. The synth voices play the exact notes on top.
     struct WaSlot { int key = -1; float g = 0.0f, target = 0.0f; };
     WaSlot wa[3]; int waKey = -1, waEvalIn = -1; float waGate = 0.0f, waLevel = 0.0f; double waPos = 0.0;
-    int chordRoot() const
+    // the pad plays the key of the LOWEST key you hold (your bass note): D under your fingers = the D pad,
+    // A = the A pad, whatever you play above it. Keys held only by the sustain pedal don't count, so a new bass
+    // note always takes over. Releasing keys never changes the pad.
+    int bassKey() const
     {
-        int pcCount[12] = {}; int lowest = 999;
+        int lowest = 999;
         for (auto& v : voices)
-            if (v.active && ! v.released && (v.keyDown || v.sustained)) { pcCount[v.note % 12]++; lowest = std::min (lowest, v.note); }
-        if (lowest == 999) return -1;
-        int best = -1; float bestS = -1e9f;
-        for (int r = 0; r < 12; ++r)
-        {
-            auto has = [&] (int i) { return pcCount[(r + i) % 12] > 0; };
-            float sc = (has (0) ? 3.0f : 0.0f) + (has (7) ? 2.0f : 0.0f) + ((has (4) || has (3)) ? 2.0f : 0.0f)
-                     + ((has (10) || has (11)) ? 0.5f : 0.0f) + (r == lowest % 12 ? 2.5f : 0.0f) - (has (1) ? 1.0f : 0.0f);
-            if (sc > bestS) { bestS = sc; best = r; }
-        }
-        return best;
+            if (v.active && v.keyDown && ! v.released) lowest = std::min (lowest, v.note);
+        return lowest == 999 ? -1 : lowest % 12;
     }
     void waTick (float& outL, float& outR)
     {
@@ -1530,7 +1523,7 @@ private:
         if (b == nullptr) return;
         if (waEvalIn >= 0 && --waEvalIn < 0)
         {
-            const int r = chordRoot();
+            const int r = bassKey();
             if (r >= 0 && r != waKey)
             {
                 waKey = r;
