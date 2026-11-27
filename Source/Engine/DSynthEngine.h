@@ -246,7 +246,7 @@ struct Voice
     float clickEnv = 0.0f;
     OnePole clickLp;
     // sampled layer: up to 8 players (one per instrument / articulation)
-    struct SmpPlay { const SampleZone* z = nullptr; double pos = 0; double rootMul = 1; float gain = 0; float pan = 0; int role = 0; };   // role: 0 normal, 1 leaving, 2 arriving
+    struct SmpPlay { const SampleZone* z = nullptr; double pos = 0, posR = 0; double rootMul = 1; float gain = 0; float pan = 0; int role = 0; };   // role: 0 normal, 1 leaving, 2 arriving
     std::array<SmpPlay, 8> smp;
     int nSmp = 0;
     float smpTrans = 0.0f;   // glockenspiel sounds two octaves up
@@ -259,6 +259,10 @@ struct Voice
     double glideFrom = 60.0, glideTo = 60.0, vGlideC1 = 0.0, vGlideC2 = 0.0;
     float legT = 0.0f, legDur = 0.07f, legDip = 0.0f, noteAge = 0.0f;
     OnePole slideLpL, slideLpR;
+    // Disney legato (measured on Session Strings): kind 0 = finger change in an inner voice, 1 = sung slide in the melody
+    // kind 0 = normal slide, 1 = slow portamento (soft), 2 = quick finger change (hard, no audible slide)
+    int legKind = 0; float legPrep = 0.0f, legLag = 0.0f, legTotal = 0.1f, legOffR = 0.0f;
+    float legOvs = 0.0f, legXf = 0.06f, legSwell = 0.0f, legDark = 0.0f; double legBend = 2.5;
     OnePole smpTiltL, smpTiltR;
     // FX kit
     int fxType = -1;
@@ -284,7 +288,7 @@ struct Voice
                 fL1.reset(); fL2.reset(); fR1.reset(); fR2.reset();
             }
             amp.gate (true); filt.gate (true);
-            timeSinceOn = 0.0f; noteAge = 0.0f;
+            timeSinceOn = 0.0f; noteAge = 0.0f; portamento = false;
             epCar = epMod = epTine = epLow = epCar2 = epMod2 = 0.0;
             shim1.phase = rng.unit(); shim2.phase = rng.unit();
             shimLfo = rng.unit(); shimRate = 0.25f + 0.35f * rng.unit();
@@ -733,15 +737,8 @@ public:
                 if (v.legatoGlide)
                 {
                     v.legT += dt;
-                    const float t = std::min (1.0f, v.legT / v.legDur);
-                    float shape;
-                    {
-                        // balanced S that lands exactly on the note (measured on Session Strings slides:
-                        // ~15% of the way at a quarter of the slide, ~42% at half, ~80% at three quarters)
-                        const float sm = t * t * (3.0f - 2.0f * t);
-                        shape = std::pow (sm, 1.2f);
-                    }
-                    v.pitch = v.glideFrom + (v.glideTo - v.glideFrom) * shape;
+                    v.pitch = legPath (v, v.legT);
+                    v.legOffR = (float) (legPath (v, v.legT - v.legLag) - v.pitch);   // the second desk is a little late
                     v.glideMid = v.pitch;
                 }
                 else if (glideCoef > 0.0 && ! danStrings)
@@ -760,7 +757,9 @@ public:
                 float bowVib = 0.0f;
                 if (danStrings)
                 {
-                    const float onset = clampf ((v.timeSinceOn - 0.25f) / 0.5f, 0.0f, 1.0f);
+                    float onset = clampf ((v.timeSinceOn - 0.25f) / 0.5f, 0.0f, 1.0f);
+                    // the player stops the vibrato while the finger travels, and takes it back ~150 ms after landing
+                    if (v.portamento) onset *= clampf ((v.noteAge - v.legPrep - v.legDur) / 0.15f, 0.0f, 1.0f);
                     bowVib = mod * onset * vibSin;
                     pitch += 0.16f * bowVib;                    // about a sixth of a semitone at full wheel
                 }
@@ -965,32 +964,57 @@ public:
                 {
                     float sl = 0.0f, sr2 = 0.0f;
                     const double base = std::pow (2.0, (pitch + v.smpTrans - 60.0) / 12.0) / sr;
-                    float xf = 1.0f, dip = 0.0f;   // transition progress and "bow pressure" dip (0..1)
+                    double baseR = base;
+                    float xf = 1.0f, dip = 0.0f, dark = 0.0f;   // crossfade, level (dB), darkening (0..1)
+                    double mulOld = 1.0, mulNew = 1.0;          // each recording is bent at most legBend semitones
                     if (v.legatoGlide)
                     {
-                        const float t = std::min (1.0f, v.legT / v.legDur);
-                        // the arriving recording takes over as the finger lands (second half of a slide)
-                        const float sm = t * t * (3.0f - 2.0f * t);
-                        xf = std::pow (sm, 1.2f);                       // the recordings swap as the pitch travels
-                        dip = v.legDip * std::sin ((float) kPi * t);
-                        if (t >= 1.0f)
+                        baseR = base * std::pow (2.0, (double) v.legOffR / 12.0);
+                        const float tt = v.legT - v.legPrep;
+                        const float u = clampf (tt / v.legDur, 0.0f, 1.0f);    // progress of the slide in time
+                        const float bump = std::sin ((float) kPi * u);
+                        // crossfade: follows the pitch for slides, a short overlap for quick finger changes
+                        if (v.legKind == 2) { const float w = clampf (tt / v.legXf, 0.0f, 1.0f); xf = w * w * (3.0f - 2.0f * w); }
+                        else xf = legShape (v.legKind, u);
+                        // level: a short loss of bow pressure in the middle, a small push when the finger lands
+                        dip = -v.legDip * bump;
+                        if (tt > v.legDur) { const float x = (tt - v.legDur) / 0.04f; dip += 20.0f * std::log10 (1.0f + v.legSwell * x * std::exp (1.0f - x)); }
+                        dark = v.legDark * bump;
+                        // limited bend: the leaving recording never goes further than legBend from its own note,
+                        // the arriving one never starts further than legBend from its note (no chipmunk / metallic shift)
+                        const double from = v.glideFrom, to = v.glideTo, dir = to >= from ? 1.0 : -1.0;
+                        const double pOld = from + dir * std::min (std::abs (v.pitch - from), v.legBend);
+                        const double pNew = std::abs (v.pitch - to) > v.legBend && (v.pitch - to) * dir < 0.0 ? to - dir * v.legBend : v.pitch;
+                        mulOld = std::pow (2.0, (pOld - v.pitch) / 12.0);
+                        mulNew = std::pow (2.0, (pNew - v.pitch) / 12.0);
+                        if (v.legT >= v.legTotal)
                         {
-                            v.legatoGlide = false; v.pitch = v.glideTo; v.glideMid = v.glideTo;
+                            v.legatoGlide = false; v.pitch = v.glideTo; v.glideMid = v.glideTo; v.legOffR = 0.0f;
                             for (int s = 0; s < v.nSmp; ++s) { auto& pl = v.smp[(size_t) s]; if (pl.role == 1) pl.z = nullptr; pl.role = 0; }
                         }
                     }
-                    const float gOld = std::cos (xf * 1.5707963f), gNew = std::sin (xf * 1.5707963f);
+                    float gOld = std::cos (xf * 1.5707963f);
+                    const float gNew = std::sin (xf * 1.5707963f);
+                    // finger change: the new note takes over in ~25 ms, the old one still rings a little (~30 ms tail)
+                    if (v.legatoGlide && v.legKind == 2) gOld = std::max (gOld, 0.2f * std::exp (-(v.legT - v.legPrep) / 0.03f));
                     for (int s = 0; s < v.nSmp; ++s)
                     {
                         auto& pl = v.smp[(size_t) s];
                         if (pl.z == nullptr) continue;
                         const auto& z = *pl.z;
-                        float a, c; z.read (pl.pos, a, c);
+                        float a, c, a2, c2; z.read (pl.pos, a, c);
+                        if (pl.posR != pl.pos) { z.read (pl.posR, a2, c2); c = c2; }
                         const float rg = pl.role == 1 ? gOld : (pl.role == 2 ? gNew : 1.0f);
                         sl += a * pl.gain * rg * (1.0f - pl.pan); sr2 += c * pl.gain * rg * (1.0f + pl.pan);
-                        pl.pos += base * pl.rootMul;
-                        if (z.looped()) { while (pl.pos >= (double) z.loopEnd) pl.pos -= (double) (z.loopEnd - z.loopStart); }
-                        else if (pl.pos >= (double) (z.frames - 2)) pl.z = nullptr;
+                        const double rm = pl.rootMul * (pl.role == 1 ? mulOld : (pl.role == 2 ? mulNew : 1.0));
+                        pl.pos += base * rm; pl.posR += baseR * rm;
+                        if (z.looped())
+                        {
+                            const double L = (double) (z.loopEnd - z.loopStart);
+                            while (pl.pos >= (double) z.loopEnd) pl.pos -= L;
+                            while (pl.posR >= (double) z.loopEnd) pl.posR -= L;
+                        }
+                        else if (pl.pos >= (double) (z.frames - 2) || pl.posR >= (double) (z.frames - 2)) pl.z = nullptr;
                     }
                     // mod wheel = crescendo: louder and brighter
                     const float mw = p[pMwFilter];
@@ -1015,14 +1039,15 @@ public:
                     }
                     else if (danStrings)
                     {
-                        // the bow loses a little pressure while sliding: -2.5 dB and a darker tone mid-slide
-                        if (dip > 0.0f || v.legatoGlide)
+                        // while sliding the upper harmonics drop (measured: 2nd harmonic ~-10 dB vs the fundamental)
+                        if (dark > 0.0f)
                         {
-                            const float c = OnePole::coefFor (16000.0f - 14000.0f * dip, sr);
-                            sl = v.slideLpL.lp (sl, c); sr2 = v.slideLpR.lp (sr2, c);
+                            const float c = OnePole::coefFor ((float) clampd (4.0 * baseHz, 900.0, 6000.0), sr);
+                            const float m = dark;
+                            sl += m * (v.slideLpL.lp (sl, c) - sl); sr2 += m * (v.slideLpR.lp (sr2, c) - sr2);
                         }
                         else { v.slideLpL.z = sl; v.slideLpR.z = sr2; }
-                        const float sg = aenv * velGain * smpLevel * (1.0f - 0.33f * dip) * (1.0f + 0.07f * bowVib);
+                        const float sg = aenv * velGain * smpLevel * std::pow (10.0f, dip / 20.0f) * (1.0f + 0.07f * bowVib);
                         strL += sl * sg; strR += sr2 * sg;
                     }
                     else
@@ -1300,25 +1325,73 @@ private:
         arpToNext += diff;
     }
 
-    // ---- Disney strings legato: the bow slides with an S-curve; softer = slower and deeper, harder = quicker;
-    //      the recording of the destination note fades in as the pitch arrives (no stretched sample)
+    // ---- Disney strings legato, rebuilt from a transition-by-transition analysis of Dan's Session Strings
+    //      recording (16 slides measured, 10 finger changes, 4 scooped entries):
+    //   kind 0, normal slide: 0-100 % in ~45 ms (semitone), ~85 ms (tone), ~150 ms (minor third); near-linear
+    //           middle with soft corners; downward slides overshoot the note (~0.2 st per semitone, max ~0.55)
+    //           and settle in ~90 ms, upward ones barely (~0.07 st per semitone); brief -4 dB loss mid-slide,
+    //           +2 dB push ~40 ms after landing, upper harmonics darker while moving.
+    //   kind 1, slow portamento (soft playing): ~2.2x longer, hesitates around the middle (a shelf near 45 %),
+    //           no overshoot.
+    //   kind 2, quick finger change (hard playing): no audible slide (pitch in ~12 ms), recordings overlap ~60 ms.
+    static float smooth01 (float x) { x = clampf (x, 0.0f, 1.0f); return x * x * (3.0f - 2.0f * x); }
+    static double clampd (double x, double a, double b) { return x < a ? a : (x > b ? b : x); }
+    static float legShape (int kind, float u)
+    {
+        u = clampf (u, 0.0f, 1.0f);
+        if (kind == 1)
+        {
+            if (u < 0.40f) return 0.42f * smooth01 (u / 0.40f);
+            if (u < 0.62f) return 0.42f + 0.06f * (u - 0.40f) / 0.22f;
+            return 0.48f + 0.52f * smooth01 ((u - 0.62f) / 0.38f);
+        }
+        return 0.5f * u + 0.5f * smooth01 (u);
+    }
+    double legPath (const Voice& v, float time) const
+    {
+        const double span = v.glideTo - v.glideFrom, dir = span >= 0.0 ? 1.0 : -1.0;
+        const float t = time - v.legPrep;
+        if (t <= 0.0f) return v.glideFrom;
+        double p = v.glideFrom + span * legShape (v.legKind == 1 ? 1 : 0, t / v.legDur);
+        // overshoot past the note then settle (peaks ~25 ms after 80 % of the slide, gone after ~100 ms)
+        const float t0 = 0.8f * v.legDur;
+        if (v.legOvs > 0.0f && t > t0) { const float x = (t - t0) / 0.025f; p += dir * v.legOvs * x * std::exp (1.0f - x); }
+        return p;
+    }
+
     void startLegato (Voice& v, int note, float vel, bool melodic)
     {
-        const SampleBank* b = bank.load();
-        const int interval = std::abs (note - (int) std::lround (v.pitch));
-        // a step (1-2 semitones) is a finger change; a bigger interval is a shift: the finger slides (portamento)
-        // like the big string libraries: the slide is an expressive gesture, not a default. It happens on a melody
-        // line, played softly (velocity under ~70), from a note held long enough to sing (not in fast runs).
-        // Chords and fast passages change notes cleanly.
         (void) melodic;
-        v.portamento = true;
-        // slide length: ~42 ms + 10 ms per semitone (a step ~55 ms, a fourth ~90 ms, an octave ~160 ms);
-        // softer = a little slower and deeper, harder = quicker. The GLIDE knob scales it (100 = natural).
+        const SampleBank* b = bank.load();
+        const double span = (double) note - v.pitch;
+        const float iv = (float) std::max (1.0, std::abs (span));
+        const bool down = span < 0.0;
         const float vv = clampf (vel, 0.0f, 1.0f);
         const float scale = clampf (values[pGlide] / 100.0f, 0.2f, 4.0f);
-        v.legDur = (0.042f + 0.010f * (float) std::min (interval, 12)) * (1.2f - 0.4f * vv) * scale;
-        v.legDip = 0.45f - 0.15f * vv;
-        v.legT = 0.0f; v.noteAge = 0.0f;
+        // velocity picks the transition, like the big libraries: soft = slow portamento, middle = slide, hard = finger change
+        v.legKind = vv < 0.33f ? 1 : (vv >= 0.86f ? 2 : 0);
+        v.portamento = true;
+        const float normal = std::min (0.25f, 0.028f + 0.014f * std::pow (iv, 1.5f)) * (1.1f - 0.2f * vv);
+        v.legPrep = 0.0f; v.legBend = 2.5;
+        if (v.legKind == 0)
+        {
+            v.legDur = normal * scale;
+            v.legOvs = down ? std::min (0.55f, 0.17f * std::pow (iv, 1.4f)) : std::min (0.15f, 0.06f * iv);
+            v.legDip = 4.0f; v.legSwell = 0.26f; v.legDark = 0.7f; v.legLag = 0.008f;
+        }
+        else if (v.legKind == 1)
+        {
+            v.legDur = std::min (0.45f, 2.2f * normal) * scale;
+            v.legOvs = 0.0f; v.legDip = 3.0f; v.legSwell = 0.12f; v.legDark = 0.85f; v.legLag = 0.012f;
+        }
+        else
+        {
+            v.legDur = 0.010f; v.legXf = 0.025f;
+            v.legOvs = 0.0f; v.legDip = 2.0f; v.legSwell = 0.18f; v.legDark = 0.3f; v.legLag = 0.003f;
+        }
+        if (v.legKind == 2) v.legBend = 0.0;   // a real finger change: the old note keeps its pitch and fades
+        v.legTotal = v.legDur + std::max (v.legKind == 2 ? v.legXf : 0.0f, 0.18f);
+        v.legT = 0.0f; v.noteAge = 0.0f; v.legOffR = 0.0f;
         v.legatoGlide = true; v.glideFrom = v.pitch; v.glideTo = note; v.glideMid = v.pitch;
         // keep what is sounding as the "leaving" recording, add the arriving one
         int k = 0;
@@ -1342,6 +1415,7 @@ private:
             pl.z = z; pl.role = 2; pl.gain = g; pl.pan = inst == kDanFilm ? pan * 0.7f : pan;
             pl.rootMul = std::pow (2.0, (60.0 - z->root) / 12.0) * z->rate;
             pl.pos = z->looped() ? (double) z->loopStart : 0.0;   // join in the sustain: no new bow attack
+            pl.posR = pl.pos;
         }
     }
 
@@ -1392,6 +1466,7 @@ private:
             auto& pl = v.smp[(size_t) v.nSmp++];
             pl.z = z; pl.gain = l.w * norm; pl.pan = l.pan;
             pl.pos = (set == 1 && z->looped()) ? std::min (0.12 * z->rate, (double) z->loopStart * 0.5) : 0.0;
+            pl.posR = pl.pos;
             pl.rootMul = std::pow (2.0, (60.0 - z->root) / 12.0) * z->rate;
         }
     }

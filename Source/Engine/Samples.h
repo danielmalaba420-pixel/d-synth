@@ -8,6 +8,7 @@
 #include <cstdlib>
 #include <string>
 #include <vector>
+#include <algorithm>
 
 namespace dsynth
 {
@@ -35,23 +36,31 @@ struct SampleZone
 
     bool looped() const { return loopEnd > loopStart + 16; }
 
-    // linear interpolation, returns left/right
+    // 4-point Hermite interpolation (cleaner than linear while the pitch moves: no gritty imaging on slides),
+    // wraps across the loop so the sustain stays seamless. Returns left/right.
+    inline int idx (int i) const
+    {
+        if (looped() && i >= loopEnd) i -= (loopEnd - loopStart);
+        return std::clamp (i, 0, frames - 1);
+    }
+    static inline float herm (float xm1, float x0, float x1, float x2, float t)
+    {
+        const float c1 = 0.5f * (x1 - xm1), c2 = xm1 - 2.5f * x0 + 2.0f * x1 - 0.5f * x2, c3 = 0.5f * (x2 - xm1) + 1.5f * (x0 - x1);
+        return ((c3 * t + c2) * t + c1) * t + x0;
+    }
     inline void read (double pos, float& l, float& r) const
     {
         const int i0 = (int) pos;
         const float f = (float) (pos - (double) i0);
-        const int i1 = std::min (i0 + 1, frames - 1);
+        const int im = idx (i0 - 1), ia = idx (i0), ib = idx (i0 + 1), ic = idx (i0 + 2);
+        const float k = gain / 32768.0f;
+        const int16_t* d = pcm.data();
         if (channels == 2)
         {
-            const int16_t* a = pcm.data() + 2 * i0; const int16_t* b = pcm.data() + 2 * i1;
-            l = ((float) a[0] + f * (float) (b[0] - a[0])) * (gain / 32768.0f);
-            r = ((float) a[1] + f * (float) (b[1] - a[1])) * (gain / 32768.0f);
+            l = herm (d[2 * im], d[2 * ia], d[2 * ib], d[2 * ic], f) * k;
+            r = herm (d[2 * im + 1], d[2 * ia + 1], d[2 * ib + 1], d[2 * ic + 1], f) * k;
         }
-        else
-        {
-            const float a = pcm[(size_t) i0], b = pcm[(size_t) i1];
-            l = r = (a + f * (b - a)) * (gain / 32768.0f);
-        }
+        else l = r = herm (d[im], d[ia], d[ib], d[ic], f) * k;
     }
 };
 

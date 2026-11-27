@@ -202,10 +202,17 @@ int main (int argc, char** argv)
         // render a note list (BPM line, then "start_beats length_beats note velocity") with one sound
         Song s; FILE* f = std::fopen (argv[4], "r"); if (! f) return 1;
         char line[256]; double maxEnd = 0;
+        std::vector<std::pair<int, float>> sets;   // "SET paramId value" overrides the preset (for tests)
         while (std::fgets (line, sizeof line, f))
         {
             double a, b; int n; float v;
             if (std::sscanf (line, "BPM %lf", &a) == 1) { s.bpm = a; continue; }
+            char pid[64];
+            if (std::sscanf (line, "SET %63s %f", pid, &v) == 2)
+            {
+                for (int i = 0; i < kNumParams; ++i) if (std::string (paramTable()[(size_t) i].id) == pid) sets.push_back ({ i, v });
+                continue;
+            }
             if (std::sscanf (line, "%lf %lf %d %f", &a, &b, &n, &v) == 4) { s.note (a, b, n, v); maxEnd = std::max (maxEnd, a + b); }
             else if (std::sscanf (line, "MOD %lf %lf %f", &a, &b, &v) == 3) s.mod (a, b, 0.0f, v);
         }
@@ -214,7 +221,9 @@ int main (int argc, char** argv)
         for (const auto& p : factoryPresets())
             if (std::string (p.name) == argv[5])
             {
-                std::vector<float> L, R; render (p.values(), s, &bank, L, R, sr);
+                ParamValues pv = p.values();
+                for (auto [i, x] : sets) pv[(size_t) i] = x;
+                std::vector<float> L, R; render (pv, s, &bank, L, R, sr);
                 writeWav (argv[2], L, R, (int) sr); std::printf ("wrote %s\n", argv[2]);
             }
         return 0;
