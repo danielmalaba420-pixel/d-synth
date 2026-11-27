@@ -164,6 +164,21 @@ if STR and os.path.isdir(STR):
         emit(18, midi, lo, hi, y, ls, le, True, f'i18_{midi:03d}_v{vel}')
         cnt += 1
     print('dan strings', cnt, 'zones')
+    # second layer: "Film Strings Sustain <note>" (named one octave low: A3 = 440 Hz), adds air on top
+    cnt = 0
+    for f in sorted(glob.glob(os.path.join(STR, 'Film Strings Sustain *.wav'))):
+        mm = re.search(r'Sustain ([A-G]#?)(-?\d)\.wav', f)
+        if not mm: continue
+        midi = NOTE[mm.group(1)] + 12 * (int(mm.group(2)) + 2)
+        if midi < 36 or midi > 96: continue
+        x = load(f); m = x.mean(1); env = rms_env(m, int(0.02 * SR)); n = len(m)
+        sus = np.median(env[int(0.3 * n):int(0.7 * n)])
+        st = max(0, int(np.argmax(env > 0.25 * sus)) - int(0.01 * SR))
+        y = x[st:].copy(); fi = int(0.015 * SR); y[:fi] *= np.linspace(0, 1, fi)[:, None]
+        y, ls, le = make_loop(y, 6.0)
+        emit(19, midi, 0, 127, y, ls, le, True, f'i19_{midi:03d}')
+        cnt += 1
+    print('film strings', cnt, 'zones')
 
 with open(os.path.join(OUT, 'samples.txt'), 'w') as fh:
     fh.write('# D-SYNTH 2 samples: inst root velLo velHi frames channels rate loopStart loopEnd gain file\n')

@@ -1303,10 +1303,20 @@ private:
         v.nSmp = k;
         if (b == nullptr || v.nSmp >= 8) return;
         const int vz = std::clamp ((int) std::lround (vel * 127.0f), 1, 127);
-        if (const SampleZone* z = b->find (kDanStrings, note, vz))
+        const float x = (float) note;
+        const float wFilm = 0.35f + 0.4f * clampf ((x - 55.0f) / 20.0f, 0.0f, 1.0f);
+        const float pan = clampf ((60.0f - x) / 40.0f, -0.4f, 0.4f);
+        std::vector<float> gains;
+        for (int s = 0; s < v.nSmp; ++s) gains.push_back (v.smp[(size_t) s].gain);
+        const float norm = 1.0f / std::sqrt (std::max (0.6f, 1.0f + wFilm * wFilm));
+        const std::pair<int, float> layers[2] = { { kDanStrings, norm }, { kDanFilm, wFilm * norm } };
+        for (auto [inst, g] : layers)
         {
+            if (v.nSmp >= 8) break;
+            const SampleZone* z = b->find (inst, note, vz);
+            if (z == nullptr) continue;
             auto& pl = v.smp[(size_t) v.nSmp++];
-            pl.z = z; pl.role = 2; pl.gain = 1.0f; pl.pan = clampf ((60.0f - (float) note) / 40.0f, -0.4f, 0.4f);
+            pl.z = z; pl.role = 2; pl.gain = g; pl.pan = inst == kDanFilm ? pan * 0.7f : pan;
             pl.rootMul = std::pow (2.0, (60.0 - z->root) / 12.0) * z->rate;
             pl.pos = z->looped() ? (double) z->loopStart : 0.0;   // join in the sustain: no new bow attack
         }
@@ -1344,7 +1354,9 @@ private:
         }
         else if (set == 3) ls = { { kPiano, 1.0f, 0.0f } };
         else if (set == 4) ls = { { kOrgGospel + std::clamp ((int) std::lround (values[pOrgReg]), 0, 3), 1.0f, 0.0f } };
-        else if (set == 6) ls = { { kDanStrings, 1.0f, clampf ((60.0f - x) / 40.0f, -0.4f, 0.4f) } };   // orchestra seating: violins left, celli right
+        else if (set == 6)   // orchestra seating: violins left, celli right; the film layer brings air, more in the upper register
+            ls = { { kDanStrings, 1.0f, clampf ((60.0f - x) / 40.0f, -0.4f, 0.4f) },
+                   { kDanFilm, 0.35f + 0.4f * ramp (x, 55, 75), clampf ((60.0f - x) / 40.0f, -0.4f, 0.4f) * 0.7f } };
         else ls = { { kGlock, 1.0f, 0.0f } };
         float pw = 0.0f;
         for (size_t i = 0; i < ls.size() && i < 4; ++i) pw += ls[i].w * ls[i].w;

@@ -156,7 +156,7 @@ inline const std::vector<Preset>& factoryPresets()
             { pAmpA, 80 }, { pAmpD, 2000 }, { pAmpS, 1.0f }, { pAmpR, 550 }, { pVelSens, 0.55f },
             { pVibRate, 5.6f }, { pVibDepth, 0.0f }, { pMwVibrato, 0.0f }, { pMwFilter, 0.6f }, { pMwBuild, 0.0f }, { pPbRange, 2 },
             { pChorus, 0.0f }, { pDlyMix, 0.0f }, { pWidth, 1.25f },
-            { pRevHall, 1 }, { pRevPre, 30 }, { pRevSize, 0.92f }, { pRevDamp, 0.45f }, { pRevMix, 0.34f }, { pComp, 0.25f }, { pOutput, 0.7f } } },
+            { pRevHall, 1 }, { pRevPre, 30 }, { pRevSize, 0.92f }, { pRevDamp, 0.45f }, { pRevMix, 0.34f }, { pComp, 0.25f }, { pOutput, 0.5f } } },
 
         // 12
         { "THE PRAYER", "Cordes très douces + nappe chaude", "NAPPE", {

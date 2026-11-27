@@ -20,6 +20,7 @@ enum SampleInst
     kOrgGospel, kOrg888862200, kOrgAll9, kOrgJazz,   // Daniel Malaba's organ recordings, four registrations
     kGlock,
     kDanStrings,                                      // Daniel Malaba's string ensemble
+    kDanFilm,                                         // and his "film" strings layer (air on top)
     kNumSampleInsts
 };
 
