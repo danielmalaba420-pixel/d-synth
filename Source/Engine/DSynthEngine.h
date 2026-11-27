@@ -735,17 +735,11 @@ public:
                     v.legT += dt;
                     const float t = std::min (1.0f, v.legT / v.legDur);
                     float shape;
-                    if (v.portamento)
                     {
-                        // the finger stays a moment, then slides (slow start, quick middle, soft landing)
-                        const float u = clampf ((t - 0.18f) / 0.82f, 0.0f, 1.0f);
-                        shape = u * u * u * (u * (u * 6.0f - 15.0f) + 10.0f);
-                    }
-                    else
-                    {
-                        // finger change: the new pitch is there almost at once (no audible slide)
-                        const float u = clampf (t / 0.35f, 0.0f, 1.0f);
-                        shape = u * u * (3.0f - 2.0f * u);
+                        // balanced S that lands exactly on the note (measured on Session Strings slides:
+                        // ~15% of the way at a quarter of the slide, ~42% at half, ~80% at three quarters)
+                        const float sm = t * t * (3.0f - 2.0f * t);
+                        shape = std::pow (sm, 1.2f);
                     }
                     v.pitch = v.glideFrom + (v.glideTo - v.glideFrom) * shape;
                     v.glideMid = v.pitch;
@@ -976,9 +970,9 @@ public:
                     {
                         const float t = std::min (1.0f, v.legT / v.legDur);
                         // the arriving recording takes over as the finger lands (second half of a slide)
-                        xf = v.portamento ? clampf ((t - 0.45f) / 0.5f, 0.0f, 1.0f) : clampf (t / 0.9f, 0.0f, 1.0f);
-                        const float mid = v.portamento ? clampf ((t - 0.1f) / 0.85f, 0.0f, 1.0f) : t;
-                        dip = v.legDip * std::sin ((float) kPi * mid);
+                        const float sm = t * t * (3.0f - 2.0f * t);
+                        xf = std::pow (sm, 1.2f);                       // the recordings swap as the pitch travels
+                        dip = v.legDip * std::sin ((float) kPi * t);
                         if (t >= 1.0f)
                         {
                             v.legatoGlide = false; v.pitch = v.glideTo; v.glideMid = v.glideTo;
@@ -1024,11 +1018,11 @@ public:
                         // the bow loses a little pressure while sliding: -2.5 dB and a darker tone mid-slide
                         if (dip > 0.0f || v.legatoGlide)
                         {
-                            const float c = OnePole::coefFor (16000.0f - 11000.0f * dip, sr);
+                            const float c = OnePole::coefFor (16000.0f - 14000.0f * dip, sr);
                             sl = v.slideLpL.lp (sl, c); sr2 = v.slideLpR.lp (sr2, c);
                         }
                         else { v.slideLpL.z = sl; v.slideLpR.z = sr2; }
-                        const float sg = aenv * velGain * smpLevel * (1.0f - 0.3f * dip) * (1.0f + 0.07f * bowVib);
+                        const float sg = aenv * velGain * smpLevel * (1.0f - 0.33f * dip) * (1.0f + 0.07f * bowVib);
                         strL += sl * sg; strR += sr2 * sg;
                     }
                     else
@@ -1316,20 +1310,14 @@ private:
         // like the big string libraries: the slide is an expressive gesture, not a default. It happens on a melody
         // line, played softly (velocity under ~70), from a note held long enough to sing (not in fast runs).
         // Chords and fast passages change notes cleanly.
-        v.portamento = melodic && interval >= 3 && values[pGlide] > 0.5f && vel < 0.56f && v.noteAge > 0.3f;
-        const float slow = std::max (60.0f, values[pGlide]);              // GLIDE knob: the slowest (softest) slide
+        (void) melodic;
+        v.portamento = true;
+        // slide length: ~42 ms + 10 ms per semitone (a step ~55 ms, a fourth ~90 ms, an octave ~160 ms);
+        // softer = a little slower and deeper, harder = quicker. The GLIDE knob scales it (100 = natural).
         const float vv = clampf (vel, 0.0f, 1.0f);
-        if (v.portamento)
-        {
-            const float ms = slow * (1.15f - 0.9f * vv) * (0.85f + 0.03f * (float) std::min (interval, 12));   // softer = slower; wider = a bit longer
-            v.legDur = std::max (0.06f, ms * 0.001f);
-            v.legDip = 1.0f - 0.35f * vv;                                    // soft = deeper, more romantic
-        }
-        else
-        {
-            v.legDur = 0.075f;
-            v.legDip = 0.35f;
-        }
+        const float scale = clampf (values[pGlide] / 100.0f, 0.2f, 4.0f);
+        v.legDur = (0.042f + 0.010f * (float) std::min (interval, 12)) * (1.2f - 0.4f * vv) * scale;
+        v.legDip = 0.45f - 0.15f * vv;
         v.legT = 0.0f; v.noteAge = 0.0f;
         v.legatoGlide = true; v.glideFrom = v.pitch; v.glideTo = note; v.glideMid = v.pitch;
         // keep what is sounding as the "leaving" recording, add the arriving one
