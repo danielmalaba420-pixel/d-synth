@@ -10,6 +10,8 @@
 #include <vector>
 #include <algorithm>
 #include <functional>
+#include <atomic>
+#include <thread>
 
 namespace dsynth
 {
@@ -23,6 +25,8 @@ enum SampleInst
     kGlock,
     kDanStrings,                                      // Daniel Malaba's string ensemble
     kDanFilm,                                         // and his "film" strings layer (air on top)
+    kHornPop, kHornMellow,                            // Daniel Malaba's horn sections (Glory Brass)
+    kWaPad,                                           // his W-A worship pads, one take per key (The Prayer)
     kNumSampleInsts
 };
 
@@ -83,6 +87,7 @@ struct SampleBank
         FILE* m = std::fopen ((dir + sep + "samples.txt").c_str(), "r");
         if (! m) return false;
         char line[512];
+        std::vector<SampleZone> list; std::vector<std::string> paths;
         while (std::fgets (line, sizeof (line), m))
         {
             if (line[0] == '#' || line[0] == '\n') continue;
@@ -92,23 +97,35 @@ struct SampleBank
                              &z.frames, &z.channels, &rate, &z.loopStart, &z.loopEnd, &z.gain, fn) != 11) continue;
             if (z.inst < 0 || z.inst >= kNumSampleInsts || z.frames < 2 || z.channels < 1 || z.channels > 2) continue;
             z.rate = rate;
-            z.pcm.resize ((size_t) z.frames * (size_t) z.channels);
-            const std::string name (fn), path = dir + sep + name;
-            if (name.size() > 5 && name.compare (name.size() - 5, 5, ".flac") == 0)
-            {
-                if (! decode || ! decode (path, z.pcm.data(), z.frames, z.channels)) continue;
-            }
-            else
-            {
-                FILE* f = std::fopen (path.c_str(), "rb");
-                if (! f) continue;
-                const size_t got = std::fread (z.pcm.data(), sizeof (int16_t), z.pcm.size(), f);
-                std::fclose (f);
-                if (got != z.pcm.size()) continue;
-            }
-            zones.push_back (std::move (z));
+            list.push_back (std::move (z)); paths.push_back (dir + sep + fn);
         }
         std::fclose (m);
+        // decode on several threads (the FLAC files take a few seconds on one core)
+        std::vector<char> ok (list.size(), 0);
+        std::atomic<size_t> next { 0 };
+        auto work = [&]
+        {
+            for (size_t i = next++; i < list.size(); i = next++)
+            {
+                auto& z = list[i]; const std::string& path = paths[i];
+                z.pcm.resize ((size_t) z.frames * (size_t) z.channels);
+                if (path.size() > 5 && path.compare (path.size() - 5, 5, ".flac") == 0)
+                    ok[i] = decode && decode (path, z.pcm.data(), z.frames, z.channels) ? 1 : 0;
+                else
+                {
+                    FILE* f = std::fopen (path.c_str(), "rb");
+                    if (! f) continue;
+                    ok[i] = std::fread (z.pcm.data(), sizeof (int16_t), z.pcm.size(), f) == z.pcm.size() ? 1 : 0;
+                    std::fclose (f);
+                }
+            }
+        };
+        const unsigned nt = std::max (1u, std::min (6u, std::thread::hardware_concurrency()));
+        std::vector<std::thread> th;
+        for (unsigned t = 1; t < nt; ++t) th.emplace_back (work);
+        work();
+        for (auto& t : th) t.join();
+        for (size_t i = 0; i < list.size(); ++i) if (ok[i]) zones.push_back (std::move (list[i]));
         for (int i = 0; i < (int) zones.size(); ++i) byInst[zones[(size_t) i].inst].push_back (i);
         return ! zones.empty();
     }

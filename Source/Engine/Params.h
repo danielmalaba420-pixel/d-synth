@@ -67,7 +67,7 @@ static constexpr float kArpRateBeats[] = { 0.5f, 1.0f / 3.0f, 0.25f, 1.0f / 6.0f
 static constexpr const char* kArpModeNames[] = { "Up", "Down", "Up/Down", "Repeat", "Worship 1-5-8", "Broken" };
 static constexpr const char* kOrgRegNames[] = { "Gospel", "888862200", "All 9 Bars", "J's Jazz" };
 static constexpr const char* kOrgVibNames[] = { "Off", "C1", "C2", "C3" };
-static constexpr const char* kSmpSetNames[] = { "None", "Strings", "Brass", "Piano", "Organ", "Glockenspiel", "Disney Strings" };
+static constexpr const char* kSmpSetNames[] = { "None", "Strings", "Brass", "Piano", "Organ", "Glockenspiel", "Disney Strings", "Worship Pad" };
 static constexpr const char* kRiserBarNames[] = { "1 bar", "2 bars", "4 bars", "8 bars" };
 static constexpr const char* kEpModelNames[] = { "Rhodes", "EP" };
 
@@ -175,7 +175,7 @@ inline const std::array<ParamInfo, kNumParams>& paramTable()
         { "orgVib",     "Organ Vibrato",     0, 3, 3,      ParamKind::Choice, "",   0 },
         { "orgDrive",   "Organ Drive",       0, 1, 0.2f,   ParamKind::Float,  "",   0 },
         { "leslie",     "Rotary",            0, 1, 1.0f,   ParamKind::Float,  "",   0 },
-        { "smpSet",     "Sample Set",        0, 6, 0,      ParamKind::Choice, "",   0 },
+        { "smpSet",     "Sample Set",        0, 7, 0,      ParamKind::Choice, "",   0 },
         { "smpLevel",   "Sample Level",      0, 1, 0.0f,   ParamKind::Float,  "",   0 },
         { "smpStac",    "Sample Stabs",      0, 1, 0.0f,   ParamKind::Float,  "",   0 },
         { "mwPad",      "Mod > Synth Level", 0, 1, 0.0f,   ParamKind::Float,  "",   0 },

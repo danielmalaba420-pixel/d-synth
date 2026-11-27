@@ -514,10 +514,10 @@ void SynthPanel::bindKnobs()
     if (name == "ARP CRYSTAL")             set[2] = { "epBark", "BRILLANCE" };
     if (name == "HOLY G")                  set = { { { "orgReg", "TIRETTES" }, { "orgPerc", "PERCU" }, { "orgClick", "CLIC" }, { "orgDrive", "DRIVE" }, { "leslie", "ROTARY" }, { "output", "VOLUME" } } };
     if (name == "FIRE KEYS")               set = { { { "smpLevel", "PIANO" }, { "padLevel", "SUPER SAW" }, { "orgLevel", "ORGUE" }, { "dlyMix", "DELAY" }, { "revMix", "REVERB" }, { "output", "VOLUME" } } };
-    if (name == "GLORY BRASS")             set = { { { "smpStac", "STABS" }, { "padLevel", "SYNTH" }, { "ampR", "RELEASE" }, { "revMix", "REVERB" }, { "width", "WIDTH" }, { "output", "VOLUME" } } };
+    if (name == "GLORY BRASS")             set = { { { "ampA", "ATTAQUE" }, { "padLevel", "SYNTH" }, { "ampR", "RELEASE" }, { "revMix", "REVERB" }, { "width", "WIDTH" }, { "output", "VOLUME" } } };
     if (name == "STRING DINSEI")           set = { { { "glide", "CHORD GLIDE" }, { "ampA", "ATTAQUE" }, { "padLevel", "PAD" }, { "revMix", "REVERB" }, { "width", "WIDTH" }, { "output", "VOLUME" } } };
     if (name == "STRING GLIDE")            set[0] = { "glide", "CHORD GLIDE" };
-    if (name == "THE PRAYER")              set = { { { "cutoff", "TONE" }, { "ampA", "ATTAQUE" }, { "chorus", "CHORUS" }, { "lfoCut", "MOUVEMENT" }, { "revMix", "REVERB" }, { "output", "VOLUME" } } };
+    if (name == "THE PRAYER")              set = { { { "smpLevel", "PAD W-A" }, { "cutoff", "TONE" }, { "ampA", "ATTAQUE" }, { "chorus", "CHORUS" }, { "revMix", "REVERB" }, { "output", "VOLUME" } } };
     if (name == "SIGNLY")                  set = { { { "glide", "GLIDE" }, { "dlyFb", u8 ("R\xc3\x89P\xc3\x89TITIONS") }, { "dlyMix", "DELAY" }, { "dlyBloom", "BLOOM" }, { "revMix", "REVERB" }, { "output", "VOLUME" } } };
     if (name == "RISER")                   set = { { { "riserBars", u8 ("DUR\xc3\x89" "E") }, { "riserPitch", u8 ("MONT\xc3\x89" "E") }, { "cutoff", "TONE" }, { "dlyMix", "DELAY" }, { "revMix", "REVERB" }, { "output", "VOLUME" } } };
     if (name == "FX KIT")                  set = { { { "revSize", "ESPACE" }, { "revMix", "REVERB" }, { "dlyMix", "DELAY" }, { "comp", "PUNCH" }, { "width", "WIDTH" }, { "output", "VOLUME" } } };
@@ -581,7 +581,7 @@ void SynthPanel::refresh()
         info.right = "CHARGEMENT DES SAMPLES...";
     else if (val ("arp") > 0.5f)
         info.right = "ARP " + juce::String (kArpRateNames[juce::jlimit (0, 4, (int) std::lround (val ("arpRate")))]) + u8 (" \xc2\xb7 ")
-                   + juce::String (kArpModeNames[juce::jlimit (0, 3, (int) std::lround (val ("arpMode")))]).toUpperCase();
+                   + juce::String (kArpModeNames[juce::jlimit (0, 5, (int) std::lround (val ("arpMode")))]).toUpperCase();
     else if (val ("orgLevel") > 0.5f)
         info.right = juce::String ("LESLIE ") + (proc.leslieFast() ? "RAPIDE" : "LENT") + u8 (" \xc2\xb7 MOLETTE");
     else if (nm == "FX KIT")

@@ -288,7 +288,7 @@ struct Voice
                 fL1.reset(); fL2.reset(); fR1.reset(); fR2.reset();
             }
             amp.gate (true); filt.gate (true);
-            timeSinceOn = 0.0f; noteAge = 0.0f; portamento = false;
+            timeSinceOn = 0.0f; noteAge = 0.0f; portamento = false; killing = false; killGain = 1.0f;
             epCar = epMod = epTine = epLow = epCar2 = epMod2 = 0.0;
             shim1.phase = rng.unit(); shim2.phase = rng.unit();
             shimLfo = rng.unit(); shimRate = 0.25f + 0.35f * rng.unit();
@@ -301,6 +301,7 @@ struct Voice
     }
 
     void release() { amp.gate (false); filt.gate (false); released = true; keyDown = false; sustained = false; }
+    bool killing = false; float killGain = 1.0f;   // 30 ms fade when another sound is chosen
 };
 
 //==============================================================================
@@ -531,6 +532,7 @@ public:
 
     void noteOn (int note, float vel)
     {
+        waEvalIn = (int) (0.025f * sr);   // let the whole chord arrive, then pick the W-A key
         if (keysDown == 0) { riserSamples = 0; percEnv = 1.0f; }   // a new phrase: riser restarts, organ percussion fires
         ++keysDown;
         if (values[pArp] > 0.5f && std::lround (values[pEngine]) != 3) { arpAdd (note, vel); return; }
@@ -539,8 +541,10 @@ public:
 
     void noteOff (int note)
     {
+        waEvalIn = (int) (0.025f * sr);
         keysDown = std::max (0, keysDown - 1);
         if (values[pArp] > 0.5f && std::lround (values[pEngine]) != 3) { arpRemove (note); return; }
+        if (std::find (arpKeys.begin(), arpKeys.end(), note) != arpKeys.end()) arpRemove (note);
         playOff (note);
     }
 
@@ -580,7 +584,7 @@ public:
 
     void sustainPedal (bool down)
     {
-        pedal = down;
+        pedal = down; waEvalIn = (int) (0.025f * sr);
         if (! down)
             for (auto& v : voices)
                 if (v.active && v.sustained) v.release();
@@ -591,13 +595,31 @@ public:
         held.clear();
         arpKeys.clear(); arpRunning = false; arpSounding.clear(); keysDown = 0;
         pedal = false;
-        for (auto& v : voices) if (v.active) v.release();
+        for (auto& v : voices) if (v.active) { v.legatoGlide = false; v.release(); }
+        lastChordNotes.clear(); lastLineNote = -1;
+    }
+
+    // A new sound was picked (the plugin sends every parameter each block, so the engine notices it here):
+    // whatever the previous sound was doing (arpeggio, mono line, held chord, legato) is stopped cleanly with a
+    // short fade, so nothing keeps looping and the new sound starts from a clean state.
+    void soundChanged()
+    {
+        allNotesOff();
+        for (auto& sl : wa) { sl.key = -1; sl.g = 0.0f; sl.target = 0.0f; } waGate = 0.0f; waKey = -1; waPos = 0.0;
+        for (auto& v : voices) if (v.active) v.killing = true;
     }
 
     // ---- audio
     void process (float* outL, float* outR, int numSamples)
     {
         const auto& p = values;
+        {
+            // which part of the engine plays the notes: when this changes, a different sound was chosen
+            const int sig = (p[pArp] > 0.5f ? 1 : 0) | (p[pPoly] > 0.5f ? 2 : 0) | ((int) std::lround (p[pEngine]) << 2)
+                          | ((int) std::lround (p[pSmpSet]) << 5) | (p[pRiser] > 0.5f ? 256 : 0);   // (no knob of any sound is part of this)
+            if (routeSig >= 0 && sig != routeSig) soundChanged();
+            routeSig = sig;
+        }
         updateEnvelopes();
 
         const int waveA = (int) std::lround (p[pOscAWave]);
@@ -665,6 +687,9 @@ public:
         const bool fxMode = engineMode == 3;
         const float smpLevel = (p[pSmpSet] > 0.5f && samplesReady()) ? p[pSmpLevel] : 0.0f;
         const bool organSmp = smpLevel > 0.0f && std::lround (p[pSmpSet]) == 4;
+        const bool waOn = smpLevel > 0.0f && std::lround (p[pSmpSet]) == 7;
+        waLevel = smpLevel * (1.0f + 0.5f * mod * p[pMwPad]);
+        if (! waOn) { for (auto& sl : wa) { sl.key = -1; sl.g = 0.0f; sl.target = 0.0f; } waGate = 0.0f; waKey = -1; }
         const float orgLevel = p[pOrgLevel];
         const float padGain = clampf (padLevel + mod * p[pMwPad], 0.0f, 1.5f);
         const bool riserOn = p[pRiser] > 0.5f;
@@ -718,7 +743,7 @@ public:
             lfoPhase += lfoInc; if (lfoPhase >= 1.0f) lfoPhase -= 1.0f;
             const float lfoSin = lfoCut > 0.0f ? sinTab (lfoPhase) : 0.0f;
             percEnv *= percCoef;
-            float orgBus = 0.0f, strL = 0.0f, strR = 0.0f;
+            float orgBus = 0.0f, orgSide = 0.0f, strL = 0.0f, strR = 0.0f;
 
             // Build macro: more drive, brighter, wider, more space
             const float drive = clampf (p[pDrive] + b * 0.45f + riserR * 0.3f, 0.0f, 1.0f);
@@ -732,6 +757,11 @@ public:
             for (auto& v : voices)
             {
                 if (! v.active) continue;
+                if (v.killing)
+                {
+                    v.killGain -= dt / 0.03f;
+                    if (v.killGain <= 0.0f) { v.active = false; v.killing = false; v.killGain = 1.0f; continue; }
+                }
 
                 // glide
                 if (v.legatoGlide)
@@ -764,7 +794,7 @@ public:
                     pitch += 0.16f * bowVib;                    // about a sixth of a semitone at full wheel
                 }
 
-                const float aenv = v.amp.tick();
+                const float aenv = v.amp.tick() * v.killGain;
                 const float fenv = v.filt.tick();
                 const bool padIdle = v.amp.stage == Env::Idle;
                 if (fxMode)
@@ -794,6 +824,7 @@ public:
                 if (keysMode)
                 {
                     v.epEnv *= v.released ? v.epCoefRel : v.epCoefHeld;
+                    if (v.killing) v.epEnv *= 0.9985f;
                     v.epBarkEnv *= barkCoef;
                     v.epTineEnv *= tineCoef;
                     v.epAtk = std::min (1.0f, v.epAtk + dt / 0.0015f);
@@ -1036,6 +1067,7 @@ public:
                         v.clickEnv *= clickCoef;
                         if (clickLevel > 0.0f && v.clickEnv > 1.0e-4f) o += v.clickLp.lp (rng.next(), clickC) * v.clickEnv * clickLevel * 0.15f;
                         orgBus += o * aenv * smpLevel * 0.9f;
+                        orgSide += 0.5f * (sl - sr2) * aenv * smpLevel * 0.9f;   // keep the width of the recording
                     }
                     else if (danStrings)
                     {
@@ -1084,10 +1116,12 @@ public:
                 sumR += eqAirR.process (eqMudR.process (eqWarmR.process (strR)));
             }
 
+            if (waOn) { float wl, wr; waTick (wl, wr); sumL += wl; sumR += wr; }
+
             if (orgLevel > 0.0001f || organSmp)
             {
                 float oL, oR;
-                organFx (orgBus, oL, oR, orgVib, p[pOrgDrive], p[pLeslie]);
+                organFx (orgBus, orgSide, oL, oR, orgVib, p[pOrgDrive], p[pLeslie]);
                 sumL += oL; sumR += oR;
             }
 
@@ -1199,6 +1233,7 @@ private:
     float buildSm = 0.0f, vibPhase = 0.0f;
     std::array<Voice, kMaxVoices> voices;
     std::vector<int> held;
+    int routeSig = -1;
     uint64_t ageCounter = 0;
     Rng rng;
 
@@ -1240,7 +1275,8 @@ private:
     int vibW = 0, lesW = 0;
     float vibPh = 0.0f, hornAng = 0.0f, drumAng = 0.3f, hornSpd = 0.8f, drumSpd = 0.66f;
     bool lesFast = false;
-    OnePole xo1, xo2, orgLow, orgSub;
+    OnePole xo1, xo2, orgLow, orgSub, orgSideLp, roomLpL, roomLpR, roomDirL, roomDirR;
+    std::vector<float> roomBuf = std::vector<float> (8192, 0.0f); int roomW = 0;
     std::vector<float> chL = std::vector<float> (4096, 0.0f), chR = std::vector<float> (4096, 0.0f);
     int chW = 0; float chPh = 0.0f;
 
@@ -1424,9 +1460,9 @@ private:
     {
         v.nSmp = 0;
         const SampleBank* b = bank.load();
-        const int set = std::clamp ((int) std::lround (values[pSmpSet]), 0, 6);
+        const int set = std::clamp ((int) std::lround (values[pSmpSet]), 0, 7);
         v.smpTrans = set == 5 ? 24.0f : 0.0f;
-        if (b == nullptr || b->empty() || set == 0 || values[pSmpLevel] <= 0.0f) return;
+        if (b == nullptr || b->empty() || set == 0 || set == 7 || values[pSmpLevel] <= 0.0f) return;   // 7: the W-A texture is not per note
         const int n = v.note;
         const float velScale = set == 1 ? 0.72f : 1.0f;   // strings: the soft (warm) layer unless you really dig in
         const int vel = std::clamp ((int) std::lround (v.velocity * 127.0f * velScale), 1, 127);
@@ -1441,14 +1477,8 @@ private:
                    { kViolas, ramp (x, 47, 53) * (1.0f - ramp (x, 72, 79)), 0.05f },
                    { kViolins, ramp (x, 54, 60), -0.2f } };
         }
-        else if (set == 2)
-        {
-            const float st = values[pSmpStac] * std::pow (v.velocity, 1.5f) * 1.3f;
-            const float wT = ramp (x, 57, 63), wH = ramp (x, 40, 45) * (1.0f - ramp (x, 70, 76));
-            const float wB = (x >= 36 ? 1.0f : 0.7f) * (1.0f - ramp (x, 63, 69)), wU = 1.0f - ramp (x, 45, 52);
-            ls = { { kTrumpetSus, wT, -0.25f }, { kHornSus, wH * 0.9f, -0.05f }, { kTromboneSus, wB, 0.2f }, { kTubaSus, wU * 0.9f, 0.3f },
-                   { kTrumpetStac, wT * st, -0.25f }, { kHornStac, wH * st * 0.9f, -0.05f }, { kTromboneStac, wB * st, 0.2f }, { kTubaStac, wU * st * 0.9f, 0.3f } };
-        }
+        else if (set == 2)   // Dan's horn sections: Pop Horns for the punch, Mellow underneath for body
+            ls = { { kHornPop, 1.0f, 0.0f }, { kHornMellow, 0.55f, 0.0f } };
         else if (set == 3) ls = { { kPiano, 1.0f, 0.0f } };
         else if (set == 4) ls = { { kOrgGospel + std::clamp ((int) std::lround (values[pOrgReg]), 0, 3), 1.0f, 0.0f } };
         else if (set == 6)   // orchestra seating: violins left, celli right; the film layer brings air, more in the upper register
@@ -1472,7 +1502,70 @@ private:
     }
 
     // ---- organ bus: vibrato/chorus scanner, tube drive, rotary speaker (horn + drum, own speeds)
-    void organFx (float x, float& outL, float& outR, int vibMode, float drv, float les)
+    // ---- W-A worship pad (The Prayer): Dan's pads are recorded in every key (root + fifth, no third), so the
+    //      texture follows the ROOT of the chord being played and crossfades (0.9 s) to the new key, continuing at
+    //      the same place in the recording so the change is seamless. The synth voices play the exact notes on top.
+    struct WaSlot { int key = -1; float g = 0.0f, target = 0.0f; };
+    WaSlot wa[3]; int waKey = -1, waEvalIn = -1; float waGate = 0.0f, waLevel = 0.0f; double waPos = 0.0;
+    int chordRoot() const
+    {
+        int pcCount[12] = {}; int lowest = 999;
+        for (auto& v : voices)
+            if (v.active && ! v.released && (v.keyDown || v.sustained)) { pcCount[v.note % 12]++; lowest = std::min (lowest, v.note); }
+        if (lowest == 999) return -1;
+        int best = -1; float bestS = -1e9f;
+        for (int r = 0; r < 12; ++r)
+        {
+            auto has = [&] (int i) { return pcCount[(r + i) % 12] > 0; };
+            float sc = (has (0) ? 3.0f : 0.0f) + (has (7) ? 2.0f : 0.0f) + ((has (4) || has (3)) ? 2.0f : 0.0f)
+                     + ((has (10) || has (11)) ? 0.5f : 0.0f) + (r == lowest % 12 ? 2.5f : 0.0f) - (has (1) ? 1.0f : 0.0f);
+            if (sc > bestS) { bestS = sc; best = r; }
+        }
+        return best;
+    }
+    void waTick (float& outL, float& outR)
+    {
+        outL = outR = 0.0f;
+        const SampleBank* b = bank.load();
+        if (b == nullptr) return;
+        if (waEvalIn >= 0 && --waEvalIn < 0)
+        {
+            const int r = chordRoot();
+            if (r >= 0 && r != waKey)
+            {
+                waKey = r;
+                WaSlot* s = nullptr;
+                for (auto& sl : wa) if (sl.key == r) s = &sl;
+                if (s == nullptr) { s = &wa[0]; for (auto& sl : wa) if (sl.g < s->g) s = &sl; s->key = r; if (waGate < 0.01f) s->g = 1.0f; }
+                for (auto& sl : wa) sl.target = &sl == s ? 1.0f : 0.0f;
+            }
+        }
+        const bool anyHeld = keysDown > 0 || std::any_of (voices.begin(), voices.end(), [] (const Voice& v) { return v.active && v.sustained; });
+        const float gT = anyHeld && waKey >= 0 ? 1.0f : 0.0f;
+        waGate += (gT - waGate) * (gT > waGate ? 1.0f / (1.2f * sr) * 3.0f : 1.0f / (4.5f * sr) * 3.0f);
+        if (waGate < 1.0e-4f && gT == 0.0f) { waGate = 0.0f; waPos = 0.0; return; }
+        const float step = 1.0f / (0.9f * sr);
+        float l = 0.0f, r = 0.0f;
+        for (auto& sl : wa)
+        {
+            sl.g += clampf (sl.target - sl.g, -step, step);
+            if (sl.key < 0 || sl.g <= 0.0f) continue;
+            const SampleZone* z = b->find (kWaPad, 60 + sl.key, 100);
+            if (z == nullptr || ! z->looped()) continue;
+            const double len = (double) (z->loopEnd - z->loopStart);
+            double pos = waPos * z->rate / sr;
+            pos = pos < (double) z->loopStart ? pos : (double) z->loopStart + std::fmod (pos - (double) z->loopStart, len);
+            float a, c; z->read (pos, a, c);
+            const float g = std::sin (sl.g * 1.5707963f);   // equal-power crossfade between keys
+            l += a * g; r += c * g;
+        }
+        waPos += 1.0;
+        const float k = waGate * waLevel * 1.6f;
+        const float m = 0.5f * (l + r), sd = 0.5f * (l - r) * 0.7f;   // the takes are very wide: keep them solid in mono
+        outL = (m + sd) * k; outR = (m - sd) * k;
+    }
+
+    void organFx (float x, float side, float& outL, float& outR, int vibMode, float drv, float les)
     {
         if (vibMode > 0)
         {
@@ -1492,7 +1585,8 @@ private:
             const float low = orgLow.lp (x, lowC), sub = orgSub.lp (x, subC);
             x = x - 0.45f * low - 0.5f * sub;
         }
-        if (les < 0.001f) { outL = outR = x; return; }
+        side = orgSideLp.lp (side, OnePole::coefFor (6000.0f, sr));
+        if (les < 0.001f) { outL = x + side; outR = x - side; organRoom (outL, outR); return; }
         if (mod > 0.55f) lesFast = true; else if (mod < 0.45f) lesFast = false;
         const float hT = lesFast ? 6.8f : 0.8f, dT = lesFast ? 5.9f : 0.66f;
         hornSpd += (hT - hornSpd) * (1.0f / ((hT > hornSpd ? 0.55f : 1.2f) * sr));
@@ -1505,13 +1599,33 @@ private:
         const float k = sr / 44100.0f;
         const float hs = sinTab (hornAng), hc = sinTab (hornAng + 0.25f);
         const float ds = sinTab (drumAng), dc = sinTab (drumAng + 0.25f);
+        // two microphones on opposite sides of the cabinet: the horn sweeps clearly from left to right,
+        // the drum less; the right mic is a little further away (0.3 ms) so the two sides never fold into mono
         const float hL = ring (hornBuf, lesW, (26.0f + 18.0f * hs) * k) * (0.6f + 0.4f * hc);
-        const float hR = ring (hornBuf, lesW, (26.0f - 18.0f * hs) * k) * (0.6f - 0.4f * hc);
+        const float hR = ring (hornBuf, lesW, (39.0f - 18.0f * hs) * k) * (0.6f - 0.4f * hc);
         const float dL = ring (drumBuf, lesW, (10.0f + 6.0f * ds) * k) * (0.8f + 0.2f * dc);
-        const float dR = ring (drumBuf, lesW, (10.0f - 6.0f * ds) * k) * (0.8f - 0.2f * dc);
+        const float dR = ring (drumBuf, lesW, (23.0f - 6.0f * ds) * k) * (0.8f - 0.2f * dc);
         lesW = (lesW + 1) & 1023;
-        outL = x * (1.0f - les) + (hL + dL) * les * 1.15f;
-        outR = x * (1.0f - les) + (hR + dR) * les * 1.15f;
+        outL = x * (1.0f - les) + (hL + dL) * les * 1.2f + side;
+        outR = x * (1.0f - les) + (hR + dR) * les * 1.2f - side;
+        organRoom (outL, outR);
+    }
+
+    // the organ a few metres away in the church: less direct sound, a little darker, early reflections
+    // from the side walls (different on each side) before the hall reverb
+    void organRoom (float& l, float& r)
+    {
+        roomBuf[(size_t) roomW] = 0.5f * (l + r);
+        const float k = sr / 1000.0f;
+        auto tap = [&] (float ms) { return roomBuf[(size_t) ((roomW - (int) (ms * k) + 8192) & 8191)]; };
+        float eL = 0.30f * tap (11.3f) + 0.22f * tap (19.7f) + 0.16f * tap (31.1f) + 0.11f * tap (43.9f);
+        float eR = 0.30f * tap (13.9f) + 0.22f * tap (23.3f) + 0.16f * tap (29.3f) + 0.11f * tap (47.3f);
+        roomW = (roomW + 1) & 8191;
+        const float c = OnePole::coefFor (4500.0f, sr);
+        eL = roomLpL.lp (eL, c); eR = roomLpR.lp (eR, c);
+        const float dc = OnePole::coefFor (9000.0f, sr);
+        l = 0.8f * roomDirL.lp (l, dc) + eL;
+        r = 0.8f * roomDirR.lp (r, dc) + eR;
     }
 
     // ---- FX kit: one effect per key (C3..G4), synthesised, tempo-synced where it matters
@@ -1801,6 +1915,8 @@ private:
     void monoNoteOn (int note, float vel)
     {
         auto& v = voices[0];
+        // the mono voice may have been used by an arpeggio or a pad layer just before: make it a plain voice again
+        if (v.mask != 3 || v.killing) { v.mask = 3; v.padFade = 1.0f; v.arpPan = 0.0f; if (v.killing) { v.active = false; v.killing = false; v.killGain = 1.0f; } }
         held.erase (std::remove (held.begin(), held.end(), note), held.end());
         const bool legato = ! held.empty() && v.active && v.amp.stage != Env::Release;
         held.push_back (note);
