@@ -263,7 +263,7 @@ struct Voice
     // Disney legato (measured on Session Strings): kind 0 = finger change in an inner voice, 1 = sung slide in the melody
     // kind 0 = normal slide, 1 = slow portamento (soft), 2 = quick finger change (hard, no audible slide)
     int legKind = 0; float legPrep = 0.0f, legLag = 0.0f, legTotal = 0.1f, legOffR = 0.0f;
-    float legOvs = 0.0f, legXf = 0.06f, legSwell = 0.0f, legDark = 0.0f, legAnt = 0.0f; double legBend = 2.5;
+    float legOvs = 0.0f, legXf = 0.06f, legSwell = 0.0f, legDark = 0.0f; double legBend = 2.5;
     OnePole smpTiltL, smpTiltR;
     // FX kit
     int fxType = -1;
@@ -1007,12 +1007,6 @@ public:
                         else xf = legShape (v.legKind, u);
                         // level: a short loss of bow pressure in the middle, a small push when the finger lands
                         dip = -v.legDip * bump;
-                        if (v.legKind == 0)
-                        {
-                            // the level trough is wider than the finger motion (measured ~40 ms around the change)
-                            const float g = (tt - 0.5f * v.legDur) / 0.018f;
-                            dip = -v.legDip * std::exp (-0.5f * g * g);
-                        }
                         if (tt > v.legDur) { const float x = (tt - v.legDur) / 0.04f; dip += 20.0f * std::log10 (1.0f + v.legSwell * x * std::exp (1.0f - x)); }
                         dark = v.legDark * bump;
                         // limited bend: the leaving recording never goes further than legBend from its own note,
@@ -1400,11 +1394,8 @@ private:
     {
         const double span = v.glideTo - v.glideFrom, dir = span >= 0.0 ? 1.0 : -1.0;
         const float t = time - v.legPrep;
-        // anticipation (measured on Session Strings): just before the finger travels the pitch already leans a
-        // little - towards the target when going up, a small lift when going down
-        if (t <= 0.0f) return v.legPrep > 0.0f ? v.glideFrom + v.legAnt * smooth01 (time / v.legPrep) : v.glideFrom;
-        const double start = v.glideFrom + v.legAnt;
-        double p = start + (v.glideTo - start) * legShape (v.legKind == 1 ? 1 : 0, t / v.legDur);
+        if (t <= 0.0f) return v.glideFrom;
+        double p = v.glideFrom + span * legShape (v.legKind == 1 ? 1 : 0, t / v.legDur);
         // overshoot past the note then settle (peaks ~25 ms after 80 % of the slide, gone after ~100 ms)
         const float t0 = 0.8f * v.legDur;
         if (v.legOvs > 0.0f && t > t0) { const float x = (t - t0) / 0.025f; p += dir * v.legOvs * x * std::exp (1.0f - x); }
@@ -1424,17 +1415,12 @@ private:
         v.legKind = vv < 0.33f ? 1 : (vv >= 0.86f ? 2 : 0);
         v.portamento = true;
         const float normal = std::min (0.25f, 0.028f + 0.014f * std::pow (iv, 1.5f)) * (1.1f - 0.2f * vv);
-        v.legPrep = 0.0f; v.legBend = 2.5; v.legAnt = 0.0f;
+        v.legPrep = 0.0f; v.legBend = 2.5;
         if (v.legKind == 0)
         {
-            // v5, measured note by note on Daniel's Session Strings take: the finger travels fast (core ~12 ms,
-            // ~8 ms + 3 ms per semitone), lands exactly (no overshoot in any measured case), the bow lightens
-            // through the change (level trough ~-20 dB, ~40 ms wide) and the pitch leans ~35 ms before the finger moves
-            v.legDur = std::min (0.10f, 0.008f + 0.003f * iv) * (1.1f - 0.2f * vv) * scale;
-            v.legPrep = 0.035f;
-            v.legAnt = down ? 0.12f : std::min (0.35f, 0.12f * iv);
-            v.legOvs = 0.0f;
-            v.legDip = 24.0f; v.legSwell = 0.26f; v.legDark = 0.7f; v.legLag = 0.006f;
+            v.legDur = normal * scale;
+            v.legOvs = down ? std::min (0.55f, 0.17f * std::pow (iv, 1.4f)) : std::min (0.15f, 0.06f * iv);
+            v.legDip = 4.0f; v.legSwell = 0.26f; v.legDark = 0.7f; v.legLag = 0.008f;
         }
         else if (v.legKind == 1)
         {
