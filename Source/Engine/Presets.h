@@ -151,14 +151,12 @@ inline const std::vector<Preset>& factoryPresets()
             { pRevSize, 0.88f }, { pRevDamp, 0.55f }, { pRevMix, 0.32f }, { pWidth, 1.3f }, { pComp, 0.45f }, { pOutput, -3.9f } } },
 
         // 11
-        { "STRING DINSEI", "Vraies cordes d'orchestre · glides doux", "NAPPE", {
-            { pSmpSet, 1 }, { pSmpLevel, 1.0f }, { pPadLevel, 0.06f }, { pPoly, 1 }, { pGlide, 850 }, { pScoop, -2.0f },
-            { pOscAWave, 0 }, { pUnison, 5 }, { pDetune, 10 }, { pSpread, 0.9f }, { pOscBLevel, 0.0f }, { pSubLevel, 0.0f },
-            { pAmpA, 380 }, { pAmpD, 2000 }, { pAmpS, 1.0f }, { pAmpR, 1000 }, { pVelSens, 0.4f },
-            { pCutoff, 800 }, { pReso, 0.0f }, { pKeyTrack, 0.5f }, { pFiltEnv, 0.0f }, { pVelCutoff, 0.3f }, { pDrive, 0.0f }, { pVelDrive, 0.0f },
-            { pMwFilter, 0.8f }, { pMwVibrato, 0.0f }, { pVibDepth, 0.0f }, { pPbRange, 2 },
-            { pChorus, 0.0f }, { pDlyMix, 0.0f },
-            { pRevHall, 1 }, { pRevSize, 0.9f }, { pRevDamp, 0.55f }, { pRevMix, 0.36f }, { pWidth, 1.15f }, { pComp, 0.3f }, { pOutput, -0.6f } } },
+        { "STRING DINSEI", "Cordes Disney · legato et glissandos", "NAPPE", {
+            { pSmpSet, 6 }, { pSmpLevel, 1.0f }, { pPadLevel, 0.0f }, { pPoly, 1 }, { pGlide, 180 }, { pScoop, 0.0f },
+            { pAmpA, 80 }, { pAmpD, 2000 }, { pAmpS, 1.0f }, { pAmpR, 550 }, { pVelSens, 0.55f },
+            { pVibRate, 5.6f }, { pVibDepth, 0.0f }, { pMwVibrato, 0.0f }, { pMwFilter, 0.6f }, { pMwBuild, 0.0f }, { pPbRange, 2 },
+            { pChorus, 0.0f }, { pDlyMix, 0.0f }, { pWidth, 1.25f },
+            { pRevHall, 1 }, { pRevPre, 30 }, { pRevSize, 0.92f }, { pRevDamp, 0.45f }, { pRevMix, 0.34f }, { pComp, 0.25f }, { pOutput, 0.7f } } },
 
         // 12
         { "THE PRAYER", "Cordes très douces + nappe chaude", "NAPPE", {

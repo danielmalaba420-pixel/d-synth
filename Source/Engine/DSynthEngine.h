@@ -155,6 +155,36 @@ struct SVF2
     }
 };
 
+// RBJ biquad (peaking / shelving), used for the orchestral EQ of the Disney strings
+struct Biquad
+{
+    float b0 = 1, b1 = 0, b2 = 0, a1 = 0, a2 = 0, z1 = 0, z2 = 0;
+    float process (float x) { const float y = b0 * x + z1; z1 = b1 * x - a1 * y + z2; z2 = b2 * x - a2 * y; return y; }
+    void peak (float f, float q, float db, float sr)
+    {
+        const float A = std::pow (10.0f, db / 40.0f), w = 2.0f * (float) kPi * f / sr, al = std::sin (w) / (2.0f * q), c = std::cos (w);
+        const float a0 = 1 + al / A; b0 = (1 + al * A) / a0; b1 = -2 * c / a0; b2 = (1 - al * A) / a0; a1 = -2 * c / a0; a2 = (1 - al / A) / a0;
+    }
+    void shelf (bool high, float f, float db, float sr)
+    {
+        const float A = std::pow (10.0f, db / 40.0f), w = 2.0f * (float) kPi * f / sr, c = std::cos (w), s = std::sin (w);
+        const float al = s / 2.0f * std::sqrt (2.0f), sa = 2.0f * std::sqrt (A) * al;
+        float a0;
+        if (high)
+        {
+            a0 = (A + 1) - (A - 1) * c + sa;
+            b0 = A * ((A + 1) + (A - 1) * c + sa) / a0; b1 = -2 * A * ((A - 1) + (A + 1) * c) / a0; b2 = A * ((A + 1) + (A - 1) * c - sa) / a0;
+            a1 = 2 * ((A - 1) - (A + 1) * c) / a0; a2 = ((A + 1) - (A - 1) * c - sa) / a0;
+        }
+        else
+        {
+            a0 = (A + 1) + (A - 1) * c + sa;
+            b0 = A * ((A + 1) - (A - 1) * c + sa) / a0; b1 = 2 * A * ((A - 1) - (A + 1) * c) / a0; b2 = A * ((A + 1) - (A - 1) * c - sa) / a0;
+            a1 = -2 * ((A - 1) + (A + 1) * c) / a0; a2 = ((A + 1) + (A - 1) * c - sa) / a0;
+        }
+    }
+};
+
 // sine lookup (phase in cycles, 0..1)
 inline float sinTab (double ph)
 {
@@ -216,7 +246,7 @@ struct Voice
     float clickEnv = 0.0f;
     OnePole clickLp;
     // sampled layer: up to 8 players (one per instrument / articulation)
-    struct SmpPlay { const SampleZone* z = nullptr; double pos = 0; double rootMul = 1; float gain = 0; float pan = 0; };
+    struct SmpPlay { const SampleZone* z = nullptr; double pos = 0; double rootMul = 1; float gain = 0; float pan = 0; int role = 0; };   // role: 0 normal, 1 leaving, 2 arriving
     std::array<SmpPlay, 8> smp;
     int nSmp = 0;
     float smpTrans = 0.0f;   // glockenspiel sounds two octaves up
@@ -224,6 +254,10 @@ struct Voice
     double glideMid = 60.0;  // first stage of the S-shaped (string-like) glide
     float padFade = 1.0f;
     float arpPan = 0.0f;     // arpeggio notes travel from left (low) to right (high)
+    // smart legato (Disney strings): the bow slides, the recordings cross-fade, pressure dips mid-slide
+    bool legatoGlide = false;
+    double glideFrom = 60.0, glideTo = 60.0, vGlideC1 = 0.0, vGlideC2 = 0.0;
+    OnePole slideLpL, slideLpR;
     OnePole smpTiltL, smpTiltR;
     // FX kit
     int fxType = -1;
@@ -455,6 +489,10 @@ public:
         dlyW = 0;
         reverb.prepare (sampleRate);
         hall.prepare (sampleRate);
+        for (auto* b : { &eqWarmL, &eqWarmR }) b->peak (250.0f, 0.8f, 2.5f, sr);
+        for (auto* b : { &eqMudL, &eqMudR })   b->peak (450.0f, 1.0f, -2.5f, sr);
+        for (auto* b : { &eqAirL, &eqAirR })   b->shelf (true, 9000.0f, 2.5f, sr);
+        preL.assign (8192, 0.0f); preR.assign (8192, 0.0f); preW = 0;
         for (auto& v : voices)
         {
             v = Voice();
@@ -567,6 +605,7 @@ public:
         const double glideCoef = glideMs < 0.5f ? 0.0 : std::exp (-1.0 / (glideMs * 0.001 * sr * 0.33));
         const double glideCoef2 = glideMs < 0.5f ? 0.0 : std::exp (-1.0 / (glideMs * 0.001 * sr * 0.2));
         const bool sCurve = p[pSmpSet] > 0.5f && std::lround (p[pSmpSet]) == 1;   // sampled strings slide like a real section
+        const bool danStrings = std::lround (p[pSmpSet]) == 6;
         const float k = 2.0f - 1.96f * p[pReso];  // SVF damping
         const float pbSemis = bend * p[pPbRange];
 
@@ -674,7 +713,7 @@ public:
             lfoPhase += lfoInc; if (lfoPhase >= 1.0f) lfoPhase -= 1.0f;
             const float lfoSin = lfoCut > 0.0f ? sinTab (lfoPhase) : 0.0f;
             percEnv *= percCoef;
-            float orgBus = 0.0f;
+            float orgBus = 0.0f, strL = 0.0f, strR = 0.0f;
 
             // Build macro: more drive, brighter, wider, more space
             const float drive = clampf (p[pDrive] + b * 0.45f + riserR * 0.3f, 0.0f, 1.0f);
@@ -690,7 +729,12 @@ public:
                 if (! v.active) continue;
 
                 // glide
-                if (glideCoef > 0.0)
+                if (v.legatoGlide)
+                {
+                    v.glideMid = v.target + (v.glideMid - v.target) * v.vGlideC2;
+                    v.pitch = v.glideMid + (v.pitch - v.glideMid) * v.vGlideC2;
+                }
+                else if (glideCoef > 0.0 && ! danStrings)
                 {
                     if (sCurve) { v.glideMid = v.target + (v.glideMid - v.target) * glideCoef2; v.pitch = v.glideMid + (v.pitch - v.glideMid) * glideCoef2; }
                     else v.pitch = v.target + (v.pitch - v.target) * glideCoef;
@@ -703,6 +747,13 @@ public:
                 double pitch = v.pitch + pbSemis + vibSin * vibDepth;
                 if (riserOn) pitch += riserPitch * std::pow (riserR, 1.6f);
                 if (pitchEnv > 0.0f) pitch += pitchEnv * std::exp (-v.timeSinceOn / pitchEnvTau);
+                float bowVib = 0.0f;
+                if (danStrings)
+                {
+                    const float onset = clampf ((v.timeSinceOn - 0.25f) / 0.5f, 0.0f, 1.0f);
+                    bowVib = mod * onset * vibSin;
+                    pitch += 0.16f * bowVib;                    // about a sixth of a semitone at full wheel
+                }
 
                 const float aenv = v.amp.tick();
                 const float fenv = v.filt.tick();
@@ -904,13 +955,27 @@ public:
                 {
                     float sl = 0.0f, sr2 = 0.0f;
                     const double base = std::pow (2.0, (pitch + v.smpTrans - 60.0) / 12.0) / sr;
+                    float xf = 1.0f, dip = 0.0f;   // slide progress and "bow pressure" dip (0..1)
+                    if (v.legatoGlide)
+                    {
+                        const double span = v.glideTo - v.glideFrom;
+                        xf = std::abs (span) > 1.0e-6 ? (float) clampf ((float) ((v.pitch - v.glideFrom) / span), 0.0f, 1.0f) : 1.0f;
+                        dip = 4.0f * xf * (1.0f - xf);
+                        if (xf > 0.995f)
+                        {
+                            v.legatoGlide = false;
+                            for (int s = 0; s < v.nSmp; ++s) { auto& pl = v.smp[(size_t) s]; if (pl.role == 1) pl.z = nullptr; pl.role = 0; }
+                        }
+                    }
+                    const float gOld = std::cos (xf * 1.5707963f), gNew = std::sin (xf * 1.5707963f);
                     for (int s = 0; s < v.nSmp; ++s)
                     {
                         auto& pl = v.smp[(size_t) s];
                         if (pl.z == nullptr) continue;
                         const auto& z = *pl.z;
                         float a, c; z.read (pl.pos, a, c);
-                        sl += a * pl.gain * (1.0f - pl.pan); sr2 += c * pl.gain * (1.0f + pl.pan);
+                        const float rg = pl.role == 1 ? gOld : (pl.role == 2 ? gNew : 1.0f);
+                        sl += a * pl.gain * rg * (1.0f - pl.pan); sr2 += c * pl.gain * rg * (1.0f + pl.pan);
                         pl.pos += base * pl.rootMul;
                         if (z.looped()) { while (pl.pos >= (double) z.loopEnd) pl.pos -= (double) (z.loopEnd - z.loopStart); }
                         else if (pl.pos >= (double) (z.frames - 2)) pl.z = nullptr;
@@ -935,6 +1000,18 @@ public:
                         v.clickEnv *= clickCoef;
                         if (clickLevel > 0.0f && v.clickEnv > 1.0e-4f) o += v.clickLp.lp (rng.next(), clickC) * v.clickEnv * clickLevel * 0.15f;
                         orgBus += o * aenv * smpLevel * 0.9f;
+                    }
+                    else if (danStrings)
+                    {
+                        // the bow loses a little pressure while sliding: -2.5 dB and a darker tone mid-slide
+                        if (dip > 0.0f || v.legatoGlide)
+                        {
+                            const float c = OnePole::coefFor (16000.0f - 12500.0f * dip, sr);
+                            sl = v.slideLpL.lp (sl, c); sr2 = v.slideLpR.lp (sr2, c);
+                        }
+                        else { v.slideLpL.z = sl; v.slideLpR.z = sr2; }
+                        const float sg = aenv * velGain * smpLevel * (1.0f - 0.25f * dip) * (1.0f + 0.07f * bowVib);
+                        strL += sl * sg; strR += sr2 * sg;
                     }
                     else
                     {
@@ -963,6 +1040,12 @@ public:
             }
 
             if (p[pArpDust] > 0.0f && arpRunning) dustTick (sumL, sumR, p[pArpDust]);
+            if (danStrings)
+            {
+                // warmth of the wood (+2.5 dB at 250 Hz), less mud (-2.5 dB at 450 Hz), silky air (+2.5 dB above 9 kHz)
+                sumL += eqAirL.process (eqMudL.process (eqWarmL.process (strL)));
+                sumR += eqAirR.process (eqMudR.process (eqWarmR.process (strR)));
+            }
 
             if (orgLevel > 0.0001f || organSmp)
             {
@@ -1052,7 +1135,16 @@ public:
                 const float wetSend = 0.5f + bloom * 1.3f;
                 const float inL = revHPL.hp (sumL + wetL * wetSend + shim, revHPc);
                 const float inR = revHPR.hp (sumR + wetR * wetSend + shim, revHPc);
-                if (p[pRevHall] > 0.5f) { hall.process (inL * 0.25f, inR * 0.25f, p[pRevSize], p[pRevDamp], rL, rR); }
+                float hL = inL, hR = inR;
+                if (p[pRevPre] > 0.5f)
+                {
+                    preL[(size_t) preW] = inL; preR[(size_t) preW] = inR;
+                    const int d = std::min (8000, (int) (p[pRevPre] * 0.001f * sr));
+                    const int r = (preW - d + 8192) & 8191;
+                    hL = preL[(size_t) r]; hR = preR[(size_t) r];
+                    preW = (preW + 1) & 8191;
+                }
+                if (p[pRevHall] > 0.5f) { hall.process (hL * 0.25f, hR * 0.25f, p[pRevSize], p[pRevDamp], rL, rR); }
                 else reverb.process (inL, inR, p[pRevSize], p[pRevDamp], rL, rR);
                 lastRevL = rL; lastRevR = rR;
                 rL *= rMix * 3.0f; rR *= rMix * 3.0f;
@@ -1079,6 +1171,9 @@ private:
     OnePole dlyHPL, dlyHPR, dlyLPL, dlyLPR, revHPL, revHPR;
     Reverb reverb;
     HallReverb hall;
+    Biquad eqWarmL, eqWarmR, eqMudL, eqMudR, eqAirL, eqAirR;
+    std::vector<float> preL = std::vector<float> (8192, 0.0f), preR = std::vector<float> (8192, 0.0f);
+    int preW = 0;
     float compEnv = 0.0f, duckEnv = 0.0f;
     float tremPhase = 0.0f;
     OctaveUp octaveUp;
@@ -1088,6 +1183,8 @@ private:
     std::vector<int> currentChord;
     std::vector<bool> prevUsed;
     std::vector<int> prevVoice;
+    std::vector<int> lastChordNotes;
+    int lastLineNote = -1;
     bool pedal = false;
 
     // ---- v2 state
@@ -1191,12 +1288,36 @@ private:
         arpToNext += diff;
     }
 
+    // ---- Disney strings legato: the bow slides with an S-curve; softer = slower and deeper, harder = quicker;
+    //      the recording of the destination note fades in as the pitch arrives (no stretched sample)
+    void startLegato (Voice& v, int note, float vel)
+    {
+        const SampleBank* b = bank.load();
+        const float slow = std::max (60.0f, values[pGlide]);              // CHORD GLIDE knob = the slowest (softest) slide
+        const float ms = slow * (1.0f - 0.55f * clampf (vel, 0.0f, 1.0f));
+        v.vGlideC2 = std::exp (-1.0 / (ms * 0.001 * sr * 0.21));
+        v.legatoGlide = true; v.glideFrom = v.pitch; v.glideTo = note; v.glideMid = v.pitch;
+        // keep what is sounding as the "leaving" recording, add the arriving one
+        int k = 0;
+        for (int s = 0; s < v.nSmp; ++s) if (v.smp[(size_t) s].role != 1 && v.smp[(size_t) s].z != nullptr) { auto pl = v.smp[(size_t) s]; pl.role = 1; v.smp[(size_t) k++] = pl; }
+        v.nSmp = k;
+        if (b == nullptr || v.nSmp >= 8) return;
+        const int vz = std::clamp ((int) std::lround (vel * 127.0f), 1, 127);
+        if (const SampleZone* z = b->find (kDanStrings, note, vz))
+        {
+            auto& pl = v.smp[(size_t) v.nSmp++];
+            pl.z = z; pl.role = 2; pl.gain = 1.0f; pl.pan = clampf ((60.0f - (float) note) / 40.0f, -0.4f, 0.4f);
+            pl.rootMul = std::pow (2.0, (60.0 - z->root) / 12.0) * z->rate;
+            pl.pos = z->looped() ? (double) z->loopStart : 0.0;   // join in the sustain: no new bow attack
+        }
+    }
+
     // ---- sampled layer: picks the instruments for this note (section layering by register)
     void smpSetup (Voice& v)
     {
         v.nSmp = 0;
         const SampleBank* b = bank.load();
-        const int set = std::clamp ((int) std::lround (values[pSmpSet]), 0, 5);
+        const int set = std::clamp ((int) std::lround (values[pSmpSet]), 0, 6);
         v.smpTrans = set == 5 ? 24.0f : 0.0f;
         if (b == nullptr || b->empty() || set == 0 || values[pSmpLevel] <= 0.0f) return;
         const int n = v.note;
@@ -1223,6 +1344,7 @@ private:
         }
         else if (set == 3) ls = { { kPiano, 1.0f, 0.0f } };
         else if (set == 4) ls = { { kOrgGospel + std::clamp ((int) std::lround (values[pOrgReg]), 0, 3), 1.0f, 0.0f } };
+        else if (set == 6) ls = { { kDanStrings, 1.0f, clampf ((60.0f - x) / 40.0f, -0.4f, 0.4f) } };   // orchestra seating: violins left, celli right
         else ls = { { kGlock, 1.0f, 0.0f } };
         float pw = 0.0f;
         for (size_t i = 0; i < ls.size() && i < 4; ++i) pw += ls[i].w * ls[i].w;
@@ -1557,9 +1679,10 @@ private:
     void updateEnvelopes()
     {
         const auto& p = values;
+        const bool dan = std::lround (p[pSmpSet]) == 6;
         for (auto& v : voices)
         {
-            v.amp.set (p[pAmpA], p[pAmpD], p[pAmpS], p[pAmpR], sr);
+            v.amp.set (dan ? 110.0f - 70.0f * v.velocity : p[pAmpA], p[pAmpD], p[pAmpS], p[pAmpR], sr);
             v.filt.set (p[pFiltA], p[pFiltD], p[pFiltS], p[pFiltR], sr);
         }
     }
@@ -1734,8 +1857,11 @@ private:
         // A new chord starts when notes are more than ~60 ms apart. The chord you played before
         // is remembered however long you held it: the new chord's notes glide out of it.
         const uint64_t gap = sampleClock - lastNoteOnClock;
-        if (gap > (uint64_t) (0.06f * sr))
+        const bool groupFirst = gap > (uint64_t) (0.06f * sr);
+        if (groupFirst)
         {
+            if (currentChord.size() >= 2) lastChordNotes = currentChord;
+            else if (currentChord.size() == 1) lastLineNote = currentChord[0];
             prevPitches.clear(); prevVoice.clear();
             for (int n : currentChord)
             {
@@ -1762,6 +1888,32 @@ private:
                     if (v.amp.stage == Env::Release || v.amp.stage == Env::Idle) { v.amp.gate (true); v.filt.gate (true); }
                     return;
                 }
+            if (std::lround (values[pSmpSet]) == 6)
+            {
+                // Disney strings: chord voices move by small steps (<= a major third); a melody line glides from
+                // the previous melody note. Only while the previous key is still held (true legato).
+                Voice* src = nullptr; int bestD = 5;
+                for (int n : lastChordNotes)
+                    for (auto& v : voices)
+                        if (v.active && v.keyDown && v.mask == noteMask && v.note == n)
+                        {
+                            const int d = std::abs (n - note);
+                            if (d > 0 && d < bestD) { bestD = d; src = &v; }
+                        }
+                if (src == nullptr && groupFirst && lastLineNote >= 0)
+                    for (auto& v : voices)
+                        if (v.active && v.keyDown && v.mask == noteMask && v.note == lastLineNote && std::abs (lastLineNote - note) <= 12 && lastLineNote != note)
+                            { src = &v; break; }
+                if (src != nullptr)
+                {
+                    startLegato (*src, note, vel);
+                    src->note = note; src->target = note;
+                    src->velocity = 0.5f * src->velocity + 0.5f * vel;
+                    src->keyDown = true; src->released = false; src->sustained = false; src->age = ++ageCounter;
+                    return;
+                }
+            }
+            else {
             // the nearest note of the previous chord slides to this one, on the same voice
             int best = -1; double bestDist = 12.5;
             for (size_t i = 0; i < prevPitches.size(); ++i)
@@ -1772,15 +1924,18 @@ private:
             if (best >= 0)
             {
                 auto& v = voices[(size_t) prevVoice[(size_t) best]];
-                if (v.active && v.mask == noteMask && std::abs (v.pitch - prevPitches[(size_t) best]) < 0.6)
+                const bool dan = std::lround (values[pSmpSet]) == 6;
+                if (v.active && v.mask == noteMask && std::abs (v.pitch - prevPitches[(size_t) best]) < 0.6 && (! dan || v.keyDown))
                 {
                     prevUsed[(size_t) best] = true;
+                    if (dan) startLegato (v, note, vel);
                     v.note = note; v.target = note;
                     v.velocity = 0.5f * v.velocity + 0.5f * vel;
                     v.keyDown = true; v.released = false; v.sustained = false; v.age = ++ageCounter;
                     if (v.amp.stage == Env::Release || v.amp.stage == Env::Idle) { v.amp.gate (true); v.filt.gate (true); }
                     return;
                 }
+            }
             }
         }
         // sampled sounds without glide, and effects: a repeated note gets a fresh voice, the old one fades out
@@ -1804,13 +1959,14 @@ private:
         lastStarted = chosen;
         chosen->padFade = noteMask == 1 ? 0.0f : 1.0f;
         chosen->glideMid = chosen->pitch;
+        chosen->legatoGlide = false;
         epSetup (*chosen);
         smpSetup (*chosen);
         if (std::lround (values[pEngine]) == 3) fxSetup (*chosen);
         if (std::lround (values[pEngine]) == 2) bassPluck (*chosen);
 
         // chord glide: start from the nearest unused note of the previous chord, else scoop up from below
-        if (values[pGlide] > 0.5f)
+        if (values[pGlide] > 0.5f && std::lround (values[pSmpSet]) != 6)
         {
             int best = -1; double bestDist = 12.5;   // every chord tone glides from a tone of the previous chord
             for (size_t i = 0; i < prevPitches.size(); ++i)

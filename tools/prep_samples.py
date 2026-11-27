@@ -144,9 +144,30 @@ if VCSL:
         emit(17, midi, lo, hi, y, 0, 0, False, f'i17_{midi:03d}_{mm.group(1)}')
     print('glockenspiel ok')
 
+# Daniel Malaba's string ensemble ("Rich Strings"): files Rich_Strings_<note>_<velocity>.wav
+STR = sys.argv[5] if len(sys.argv) > 5 else None
+if STR and os.path.isdir(STR):
+    cnt = 0
+    for f in sorted(glob.glob(os.path.join(STR, 'Rich_Strings_*_*.wav'))):
+        mm = re.search(r'Rich_Strings_(\d{3})_(\d{3})\.wav', f)
+        midi, vel = int(mm.group(1)), int(mm.group(2))
+        if vel not in (63, 109): continue
+        lo, hi = (0, 84) if vel == 63 else (85, 127)
+        x = load(f)
+        m = x.mean(1); env = rms_env(m, int(0.02 * SR)); n = len(m)
+        sus = np.median(env[int(0.3 * n):int(0.7 * n)])
+        # remove the slow bow swell recorded in the sample: the engine's attack shapes the start instead
+        thr = (0.3 if vel == 63 else 0.15) * sus
+        st = max(0, int(np.argmax(env > thr)) - int(0.01 * SR))
+        y = x[st:].copy(); fi = int(0.015 * SR); y[:fi] *= np.linspace(0, 1, fi)[:, None]
+        y, ls, le = make_loop(y, 6.0)
+        emit(18, midi, lo, hi, y, ls, le, True, f'i18_{midi:03d}_v{vel}')
+        cnt += 1
+    print('dan strings', cnt, 'zones')
+
 with open(os.path.join(OUT, 'samples.txt'), 'w') as fh:
     fh.write('# D-SYNTH 2 samples: inst root velLo velHi frames channels rate loopStart loopEnd gain file\n')
     fh.write('# Sources: VS Chamber Orchestra Community Edition and Versilian Community Sample Library (CC0 1.0),\n')
-    fh.write('#          organ recordings provided by Daniel Malaba.\n')
+    fh.write('#          organ and string recordings provided by Daniel Malaba.\n')
     fh.write('\n'.join(lines) + '\n')
 print(len(lines), 'zones')

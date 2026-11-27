@@ -85,16 +85,25 @@ static Song songFor (const std::string& name)
     }
     else if (name == "STRING DINSEI")
     {
-        // chords that slide into each other, then a legato melody over a held chord
-        s.bpm = 66; s.beats = 28;
-        s.chord (0, 4.02, { 39, 51, 58, 63, 67 }, 0.6f);
-        s.chord (4, 4.02, { 36, 48, 55, 63, 67 }, 0.6f);
-        s.chord (8, 12.0, { 32, 44, 51, 56, 60 }, 0.55f);
-        const int mel[] = { 72, 75, 79, 80, 82, 79, 77, 75 }; const double dur[] = { 1.5, 1, 1, 1.5, 2, 1, 1, 3 };
-        double t = 8.5;
-        for (int i = 0; i < 8; ++i) { s.note (t, dur[i] + 0.06, mel[i], 0.6f); t += dur[i]; }
-        s.chord (20, 6.0, { 39, 51, 58, 63, 67, 75 }, 0.6f);
-        s.mod (0, 12, 0.2f, 0.75f); s.mod (12, 20, 0.75f, 0.35f);
+        // an original lyrical phrase: legato melody (overlapping notes = glissando), soft and strong,
+        // over sustained chords that change by voice-leading; mod wheel swells the vibrato on long notes
+        s.bpm = 72; s.beats = 34;
+        auto legato = [&] (double t0, std::vector<int> ns, std::vector<double> ds, std::vector<float> vs)
+        {
+            double t = t0;
+            for (size_t i = 0; i < ns.size(); ++i) { s.note (t, ds[i] + 0.12, ns[i], vs[i]); t += ds[i]; }
+        };
+        // chords (left hand), each held slightly into the next
+        s.chord (0, 8.15, { 39, 51, 58, 63 }, 0.5f);
+        s.chord (8, 8.15, { 36, 48, 55, 63 }, 0.5f);
+        s.chord (16, 8.15, { 32, 44, 51, 60 }, 0.55f);
+        s.chord (24, 9.5, { 34, 46, 53, 58 }, 0.6f);
+        // melody: soft phrase (slow, deep slides), then a stronger heroic answer (quick slides)
+        legato (1, { 70, 75, 74, 72, 70, 67 }, { 1.5, 1.5, 0.5, 0.5, 1.0, 3.0 }, { 0.35f, 0.4f, 0.35f, 0.35f, 0.4f, 0.35f });
+        legato (9, { 67, 72, 79, 77, 75 }, { 1.0, 1.0, 2.0, 1.0, 3.0 }, { 0.4f, 0.45f, 0.5f, 0.45f, 0.4f });
+        legato (17, { 72, 75, 80, 84, 82 }, { 1.0, 1.0, 1.0, 1.5, 2.5 }, { 0.85f, 0.85f, 0.9f, 0.95f, 0.9f });
+        legato (25, { 82, 77, 79, 82 }, { 1.0, 1.0, 1.0, 5.5 }, { 0.6f, 0.55f, 0.55f, 0.5f });
+        s.mod (3, 7, 0.0f, 0.7f); s.mod (7, 9, 0.7f, 0.1f); s.mod (12, 16, 0.1f, 0.8f); s.mod (16, 17, 0.8f, 0.3f); s.mod (27, 33, 0.2f, 0.9f);
     }
     else if (name == "THE PRAYER")
     {
