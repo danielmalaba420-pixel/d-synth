@@ -1,11 +1,14 @@
 # D-SYNTH by Danova — code source
 
-Plugin de 12 sons synthé (Audio Unit, VST3 et application autonome) pour Mac et Windows.
+Plugin de 20 sons pour claviéristes auxiliaires (Audio Unit, VST3 et application autonome)## Les 20 sons (version 2.0.0)
 
-## Les 12 sons (version 1.0.0)
+LEAD : 1. Rising Run · 2. The Run · 3. Flute Synth · 4. Supersaw · 5. Afro Pluck · 6. Signly
+ARP : 7. Arp Pulse · 8. Arp Crystal · 9. Arp Drive
+NAPPE : 10. String Glide · 11. String Dinsei · 12. The Prayer
+CLAVIER : 13. Holy G · 14. Fire Keys · CUIVRE : 15. Glory Brass
+BASSE : 16. Finger Bass · 17. Synth Bass · 18. Sub Bass · FX : 19. Riser · 20. FX Kit
 
-1. Rising Run · 2. The Run · 3. Gospel Square · 4. Soft Sine · 5. Flute Synth · 6. Whistle ·
-7. Supersaw · 8. Finger Bass · 9. Afro Pluck · 10. String Glide · 11. Elle Glide · 12. Glide Sine
+lide · 12. Glide Sine
 
 ## Où est quoi
 
@@ -14,9 +17,11 @@ Plugin de 12 sons synthé (Audio Unit, VST3 et application autonome) pour Mac et
 | `Source/Engine/Presets.h` | **Les 12 sons** : chaque son est une liste de réglages. C'est ici qu'on modifie ou remplace un son. |
 | `Source/Engine/Params.h` | La liste de tous les réglages possibles (filtre, glide, delay, basse…). |
 | `Source/Engine/DSynthEngine.h` | Le moteur sonore : oscillateurs, EP/Rhodes, modèle de corde pour la basse, glide d'accords, delay, reverb. |
-| `Source/PluginEditor.cpp` | L'interface (bois, écran ambre, potards, clavier arc-en-ciel). |
+| `Source/PluginEditor.cpp` | L'interface : la façade vient de la maquette, le code dessine ce qui bouge. |
 | `Source/PluginProcessor.cpp` | Le lien avec Logic et les autres logiciels (MIDI, pitch bend, molette, pédale). |
-| `Assets/` | Texture bois et polices (licence SIL Open Font, utilisables dans un produit commercial). |
+| `Assets/` | Polices (licence SIL Open Font) et l'image de la façade (`skin_bg.png`, `skin_on.png`). |
+| `tools/skin/` | Fabrique la façade à partir de la maquette validée (`python3 tools/skin/make_skin.py`). |
+| `Samples/` | Les sons enregistrés en FLAC (sans perte) ; les installateurs les copient dans Application Support (Mac) ou ProgramData (Windows). |
 | `packaging/mac/` | Fabrication de l'installateur Mac (.pkg). |
 | `packaging/windows/` | Fabrication de l'installateur Windows (Setup.exe, Inno Setup). |
 | `tools/render_demo.cpp` | Génère les démos audio sans ouvrir de logiciel. |
