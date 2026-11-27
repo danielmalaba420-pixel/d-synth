@@ -103,7 +103,7 @@ inline const std::vector<Preset>& factoryPresets()
 
         // 07
         { "ARP PULSE", "Arpège rapide qui monte et descend · nappe", "ARP", {
-            { pArp, 1 }, { pArpRate, 2 }, { pArpMode, 2 }, { pArpOct, 1 }, { pArpGate, 0.45f }, { pArpPad, 0.3f }, { pArpPan, 0.8f }, { pArpDust, 0.7f }, { pChorus, 0.25f },
+            { pArp, 1 }, { pArpRate, 2 }, { pArpMode, 2 }, { pArpOct, 1 }, { pArpGate, 0.45f }, { pArpPad, 0.3f }, { pArpPan, 0.8f }, { pArpDust, 1.0f }, { pChorus, 0.25f },
             { pOscAWave, 0 }, { pOscBWave, 1 }, { pOscBLevel, 0.3f }, { pOscBSemi, 12 }, { pUnison, 3 }, { pDetune, 8 }, { pSpread, 0.6f },
             { pPoly, 1 }, { pGlide, 0 },
             { pAmpA, 1 }, { pAmpD, 220 }, { pAmpS, 0.0f }, { pAmpR, 180 }, { pVelSens, 0.4f },
@@ -114,7 +114,7 @@ inline const std::vector<Preset>& factoryPresets()
 
         // 08
         { "ARP CRYSTAL", "Glockenspiel en arpège · nappe derrière", "ARP", {
-            { pArp, 1 }, { pArpRate, 2 }, { pArpMode, 2 }, { pArpOct, 1 }, { pArpGate, 0.45f }, { pArpPan, 0.8f }, { pArpDust, 0.7f },
+            { pArp, 1 }, { pArpRate, 2 }, { pArpMode, 2 }, { pArpOct, 1 }, { pArpGate, 0.45f }, { pArpPan, 0.8f }, { pArpDust, 1.0f },
             { pSmpSet, 5 }, { pSmpLevel, 1.0f }, { pPadLevel, 0.0f }, { pArpPad, 0.32f },
             { pOscAWave, 0 }, { pUnison, 5 }, { pDetune, 10 }, { pSpread, 0.9f }, { pOscBWave, 3 }, { pOscBLevel, 0.5f }, { pOscBSemi, -12 }, { pSubLevel, 0.0f },
             { pCutoff, 750 }, { pReso, 0.0f }, { pKeyTrack, 0.3f }, { pFiltEnv, 0.0f }, { pVelCutoff, 0.0f }, { pDrive, 0.0f }, { pVelDrive, 0.0f }, { pChorus, 0.3f },
@@ -126,7 +126,7 @@ inline const std::vector<Preset>& factoryPresets()
 
         // 09
         { "ARP DRIVE", "Arpège rapide · saw lourd · monte avec BUILD", "ARP", {
-            { pArp, 1 }, { pArpRate, 3 }, { pArpMode, 2 }, { pArpOct, 1 }, { pArpGate, 0.5f }, { pArpPad, 0.3f }, { pArpPan, 0.8f }, { pArpDust, 0.6f },
+            { pArp, 1 }, { pArpRate, 3 }, { pArpMode, 2 }, { pArpOct, 1 }, { pArpGate, 0.5f }, { pArpPad, 0.3f }, { pArpPan, 0.8f }, { pArpDust, 0.9f },
             { pOscAWave, 0 }, { pUnison, 7 }, { pDetune, 18 }, { pSpread, 0.9f },
             { pOscBWave, 1 }, { pOscBLevel, 0.4f }, { pOscBSemi, -12 }, { pSubLevel, 0.4f },
             { pPoly, 1 }, { pGlide, 0 },

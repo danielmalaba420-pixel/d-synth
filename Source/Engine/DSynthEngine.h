@@ -1494,20 +1494,24 @@ private:
     {
         const float dt = 1.0f / sr;
         dustTimer -= dt;
+        if (dustTimer < -0.5f) dustTimer = 0.0f;
         if (dustTimer <= 0.0f && ! arpKeys.empty())
         {
-            dustTimer = 0.03f + 0.12f * rng.unit();                       // about ten specks per second, irregular
+            // specks land on a 1/32-note grid of the song tempo, one to three steps apart (more dust = denser)
+            const float step = 60.0f / tempo / 8.0f;
+            dustTimer += step * (float) (1 + (int) (rng.unit() * (amount > 0.85f ? 2.0f : 3.0f)));
             const int base = arpKeys[(size_t) std::min ((int) arpKeys.size() - 1, (int) (rng.unit() * (float) arpKeys.size()))];
             float trans = 0.0f;
             for (auto& v : voices) if (v.active && v.mask == 1) { trans = v.smpTrans; break; }
-            const int n = base + (int) trans + (rng.unit() < 0.5f ? 12 : 24);
+            const float o = rng.unit();
+            const int n = base + (int) trans + (o < 0.45f ? 12 : o < 0.85f ? 24 : 19);   // octaves, sometimes the fifth above
             for (auto& gr : grains)
                 if (! gr.on)
                 {
                     gr.on = true; gr.ph = 0.0; gr.t = 0.0f;
                     gr.inc = 440.0 * std::pow (2.0, (std::min (n, 100) - 69.0) / 12.0) / sr;
-                    gr.dur = 0.15f + 0.35f * rng.unit();
-                    gr.amp = 0.085f * amount * (0.4f + 0.6f * rng.unit());
+                    gr.dur = 0.2f + 0.6f * rng.unit();
+                    gr.amp = 0.11f * amount * (0.4f + 0.6f * rng.unit());
                     gr.pan = rng.next() * 0.9f;
                     break;
                 }
