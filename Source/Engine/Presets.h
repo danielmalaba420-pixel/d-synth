@@ -152,7 +152,7 @@ inline const std::vector<Preset>& factoryPresets()
 
         // 11
         { "STRING DINSEI", "Cordes Disney · legato et glissandos", "NAPPE", {
-            { pSmpSet, 6 }, { pSmpLevel, 1.0f }, { pPadLevel, 0.0f }, { pPoly, 1 }, { pGlide, 180 }, { pScoop, 0.0f },
+            { pSmpSet, 6 }, { pSmpLevel, 1.0f }, { pPadLevel, 0.0f }, { pPoly, 1 }, { pGlide, 320 }, { pScoop, 0.0f },
             { pAmpA, 80 }, { pAmpD, 2000 }, { pAmpS, 1.0f }, { pAmpR, 550 }, { pVelSens, 0.55f },
             { pVibRate, 5.6f }, { pVibDepth, 0.0f }, { pMwVibrato, 0.0f }, { pMwFilter, 0.6f }, { pMwBuild, 0.0f }, { pPbRange, 2 },
             { pChorus, 0.0f }, { pDlyMix, 0.0f }, { pWidth, 1.25f },
