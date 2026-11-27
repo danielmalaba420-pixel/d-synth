@@ -34,6 +34,16 @@ enum ParamId : int
     // Bass engine (plucked string model)
     pBassTone, pBassPluck, pBassSustain, pBassPickup, pBassThump,
     pClean,
+    // v2: arpeggiator, bloom delay, chorus, slow LFO, pitch envelope
+    pArp, pArpRate, pArpMode, pArpOct, pArpGate,
+    pDlyBloom, pMwDelay, pChorus, pLfoRate, pLfoCut, pPitchEnv, pPitchEnvTime,
+    // v2: tonewheel organ layer + rotary speaker
+    pOrgLevel, pOrgReg, pOrgPerc, pOrgClick, pOrgVib, pOrgDrive, pLeslie,
+    // v2: sampled layer (strings, brass, piano)
+    pSmpSet, pSmpLevel, pSmpStac, pMwPad,
+    // v2: tempo-synced riser
+    pRiser, pRiserBars, pRiserPitch,
+    pRevHall,
     kNumParams
 };
 
@@ -51,7 +61,14 @@ struct ParamInfo
 
 // Wave shapes for oscillator A and B
 static constexpr const char* kWaveNames[] = { "Saw", "Square", "Sine", "Triangle" };
-static constexpr const char* kEngineNames[] = { "Lead", "Keys", "Bass" };
+static constexpr const char* kEngineNames[] = { "Lead", "Keys", "Bass", "FX" };
+static constexpr const char* kArpRateNames[] = { "1/8", "1/8T", "1/16", "1/16T", "1/32" };
+static constexpr float kArpRateBeats[] = { 0.5f, 1.0f / 3.0f, 0.25f, 1.0f / 6.0f, 0.125f };
+static constexpr const char* kArpModeNames[] = { "Up", "Down", "Up/Down", "Repeat", "Worship 1-5-8", "Broken" };
+static constexpr const char* kOrgRegNames[] = { "Gospel", "888862200", "All 9 Bars", "J's Jazz" };
+static constexpr const char* kOrgVibNames[] = { "Off", "C1", "C2", "C3" };
+static constexpr const char* kSmpSetNames[] = { "None", "Strings", "Brass", "Piano", "Organ", "Glockenspiel" };
+static constexpr const char* kRiserBarNames[] = { "1 bar", "2 bars", "4 bars", "8 bars" };
 static constexpr const char* kEpModelNames[] = { "Rhodes", "EP" };
 
 // Delay divisions, in beats
@@ -122,7 +139,7 @@ inline const std::array<ParamInfo, kNumParams>& paramTable()
         { "comp",       "Compression",       0, 1, 0.3f,   ParamKind::Float, "",   0 },
         { "output",     "Output",           -24, 6, -3,    ParamKind::Float, "dB", 0 },
 
-        { "engine",     "Engine",            0, 2, 0,      ParamKind::Choice, "",   0 },
+        { "engine",     "Engine",            0, 3, 0,      ParamKind::Choice, "",   0 },
         { "epLevel",    "Keys Level",        0, 1, 0.8f,   ParamKind::Float, "",   0 },
         { "epBark",     "Keys Bark",         0, 1, 0.5f,   ParamKind::Float, "",   0 },
         { "epDecay",    "Keys Decay",        0.5f, 12, 4,  ParamKind::Float, "s",  0 },
@@ -139,6 +156,33 @@ inline const std::array<ParamInfo, kNumParams>& paramTable()
         { "bassPickup", "Bass Pickup",       0, 1, 0.5f,   ParamKind::Float, "",   0 },
         { "bassThump",  "Bass Finger Thump", 0, 1, 0.5f,   ParamKind::Float, "",   0 },
         { "clean",      "Pure Tone",         0, 1, 0,      ParamKind::Bool,  "",   0 },
+        { "arp",        "Arpeggiator",       0, 1, 0,      ParamKind::Bool,   "",   0 },
+        { "arpRate",    "Arp Rate",          0, 4, 2,      ParamKind::Choice, "",   0 },
+        { "arpMode",    "Arp Pattern",       0, 5, 0,      ParamKind::Choice, "",   0 },
+        { "arpOct",     "Arp Octaves",       1, 3, 1,      ParamKind::Int,    "",   0 },
+        { "arpGate",    "Arp Gate",          0.1f, 1, 0.6f, ParamKind::Float, "",   0 },
+        { "dlyBloom",   "Delay Bloom",       0, 1, 0.0f,   ParamKind::Float,  "",   0 },
+        { "mwDelay",    "Mod > Delay",       0, 1, 0.0f,   ParamKind::Float,  "",   0 },
+        { "chorus",     "Chorus",            0, 1, 0.0f,   ParamKind::Float,  "",   0 },
+        { "lfoRate",    "Slow LFO Rate",     0.02f, 2, 0.12f, ParamKind::Float, "Hz", 0 },
+        { "lfoCut",     "Slow LFO > Filter", 0, 2, 0.0f,   ParamKind::Float,  "oct",0 },
+        { "pitchEnv",   "Pitch Drop",        0, 24, 0.0f,  ParamKind::Float,  "st", 0 },
+        { "pitchEnvT",  "Pitch Drop Time",   2, 300, 40,   ParamKind::Float,  "ms", 0 },
+        { "orgLevel",   "Organ Level",       0, 1, 0.0f,   ParamKind::Float,  "",   0 },
+        { "orgReg",     "Organ Drawbars",    0, 3, 0,      ParamKind::Choice, "",   0 },
+        { "orgPerc",    "Organ Percussion",  0, 1, 0.0f,   ParamKind::Float,  "",   0 },
+        { "orgClick",   "Organ Key Click",   0, 1, 0.4f,   ParamKind::Float,  "",   0 },
+        { "orgVib",     "Organ Vibrato",     0, 3, 3,      ParamKind::Choice, "",   0 },
+        { "orgDrive",   "Organ Drive",       0, 1, 0.2f,   ParamKind::Float,  "",   0 },
+        { "leslie",     "Rotary",            0, 1, 1.0f,   ParamKind::Float,  "",   0 },
+        { "smpSet",     "Sample Set",        0, 5, 0,      ParamKind::Choice, "",   0 },
+        { "smpLevel",   "Sample Level",      0, 1, 0.0f,   ParamKind::Float,  "",   0 },
+        { "smpStac",    "Sample Stabs",      0, 1, 0.0f,   ParamKind::Float,  "",   0 },
+        { "mwPad",      "Mod > Synth Level", 0, 1, 0.0f,   ParamKind::Float,  "",   0 },
+        { "riser",      "Riser",             0, 1, 0,      ParamKind::Bool,   "",   0 },
+        { "riserBars",  "Riser Length",      0, 3, 2,      ParamKind::Choice, "",   0 },
+        { "riserPitch", "Riser Pitch",       0, 24, 12,    ParamKind::Float,  "st", 0 },
+        { "revHall",    "Smooth Hall Reverb", 0, 1, 0,     ParamKind::Bool,   "",   0 },
     } };
     return t;
 }

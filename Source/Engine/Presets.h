@@ -1,4 +1,4 @@
-// D-SYNTH by Danova — the 12 factory leads
+// D-SYNTH by Danova — the 20 factory sounds (v2)
 #pragma once
 
 #include "Params.h"
@@ -10,10 +10,14 @@
 namespace dsynth
 {
 
+// categories shown on the front panel
+static constexpr const char* kCategories[] = { "LEAD", "ARP", "NAPPE", "CLAVIER", "CUIVRE", "BASSE", "FX" };
+
 struct Preset
 {
     const char* name;
     const char* description;
+    const char* category;
     std::vector<std::pair<int, float>> overrides; // on top of the defaults
 
     ParamValues values() const
@@ -28,8 +32,8 @@ inline const std::vector<Preset>& factoryPresets()
 {
     static const std::vector<Preset> presets = {
 
-        // 01 — the flagship: heavy lead for runs, delay trails, power builds as you climb
-        { "RISING RUN", "Lead lourd · runs · delay · montée en puissance", {
+        // 01
+        { "RISING RUN", "Lead lourd · runs · delay · montée en puissance", "LEAD", {
             { pOscAWave, 0 }, { pUnison, 7 }, { pDetune, 16 }, { pSpread, 0.85f },
             { pOscBWave, 1 }, { pOscBLevel, 0.35f }, { pOscBSemi, 0 }, { pOscBDetune, 6 },
             { pSubLevel, 0.55f }, { pSubOct, 0 },
@@ -45,8 +49,8 @@ inline const std::vector<Preset>& factoryPresets()
             { pRevSize, 0.8f }, { pRevDamp, 0.4f }, { pRevMix, 0.16f },
             { pWidth, 1.05f }, { pComp, 0.6f }, { pOutput, -5.8f } } },
 
-        // 02 — the duo lead: a loud tempo-synced echo answers every note from the other side
-        { "THE RUN", "Gros delay · effet duo sur les runs", {
+        // 02
+        { "THE RUN", "Gros delay · effet duo sur les runs", "LEAD", {
             { pOscAWave, 0 }, { pOscBWave, 1 }, { pOscBLevel, 0.45f }, { pOscBDetune, 5 },
             { pUnison, 3 }, { pDetune, 9 }, { pSpread, 0.35f }, { pSubLevel, 0.3f },
             { pPoly, 0 }, { pGlide, 18 }, { pLegatoGlide, 0 },
@@ -59,26 +63,8 @@ inline const std::vector<Preset>& factoryPresets()
             { pDlyHP, 220 }, { pDlyLP, 8000 }, { pDlyDuck, 0.0f }, { pDlyDuo, 1.0f },
             { pRevSize, 0.7f }, { pRevMix, 0.12f }, { pWidth, 1.0f }, { pComp, 0.5f }, { pOutput, -5.9f } } },
 
-        // 03 — classic gospel fill lead
-        { "GOSPEL SQUARE", "Carré doux · glide · fills", {
-            { pOscAWave, 1 }, { pUnison, 2 }, { pDetune, 6 }, { pSpread, 0.4f },
-            { pSubLevel, 0.25f }, { pPoly, 0 }, { pGlide, 45 }, { pLegatoGlide, 1 },
-            { pCutoff, 1600 }, { pReso, 0.15f }, { pKeyTrack, 0.9f }, { pFiltEnv, 0.8f }, { pVelCutoff, 0.8f },
-            { pDrive, 0.15f }, { pVibDepth, 0.1f }, { pMwVibrato, 1.0f }, { pPbRange, 2 },
-            { pDlyTime, 2 }, { pDlyFb, 0.25f }, { pDlyMix, 0.15f },
-            { pRevMix, 0.18f }, { pComp, 0.35f }, { pOutput, -7.8f } } },
-
-        // 04 — soft sine, talkbox-ish runs
-        { "SOFT SINE", "Sinusoïde · gros duo et delay", {
-            { pOscAWave, 2 }, { pOscBWave, 3 }, { pOscBLevel, 0.3f }, { pOscBSemi, 12 },
-            { pUnison, 1 }, { pPoly, 0 }, { pGlide, 70 }, { pLegatoGlide, 0 },
-            { pAmpA, 6 }, { pCutoff, 3500 }, { pKeyTrack, 0.5f }, { pFiltEnv, 0.3f },
-            { pDrive, 0.25f }, { pVelDrive, 0.3f }, { pVibDepth, 0.12f }, { pVibRate, 5.0f },
-            { pMwVibrato, 1.0f }, { pPbRange, 2 },
-            { pDlyTime, 2 }, { pDlyFb, 0.45f }, { pDlyMix, 1.35f }, { pDlyPingPong, 1 }, { pDlyHP, 180 }, { pDlyLP, 9500 }, { pDlyDuck, 0.0f }, { pDlyDuo, 1.0f }, { pRevMix, 0.16f }, { pOutput, -11.2f } } },
-
-        // 05 — airy flute synth
-        { "FLUTE SYNTH", "Doux · aérien · effet duo", {
+        // 03
+        { "FLUTE SYNTH", "Doux · aérien · effet duo", "LEAD", {
             { pOscAWave, 3 }, { pOscBWave, 2 }, { pOscBLevel, 0.4f }, { pOscBSemi, 12 },
             { pNoise, 0.08f }, { pUnison, 1 }, { pPoly, 0 }, { pGlide, 40 },
             { pAmpA, 45 }, { pAmpR, 500 }, { pCutoff, 2600 }, { pReso, 0.05f }, { pKeyTrack, 0.7f },
@@ -86,16 +72,8 @@ inline const std::vector<Preset>& factoryPresets()
             { pVibDepth, 0.1f }, { pVibDelay, 250 }, { pMwVibrato, 1.0f },
             { pDlyTime, 2 }, { pDlyFb, 0.45f }, { pDlyMix, 1.35f }, { pDlyPingPong, 1 }, { pDlyHP, 180 }, { pDlyLP, 9500 }, { pDlyDuck, 0.0f }, { pDlyDuo, 1.0f }, { pRevSize, 0.85f }, { pRevMix, 0.18f }, { pOutput, -10.0f } } },
 
-        // 06 — whistle
-        { "WHISTLE", "Sifflé · aigu", {
-            { pOscAWave, 2 }, { pNoise, 0.05f }, { pUnison, 1 }, { pPoly, 0 }, { pGlide, 90 },
-            { pLegatoGlide, 0 }, { pAmpA, 20 }, { pAmpR, 400 },
-            { pCutoff, 5000 }, { pKeyTrack, 0.3f }, { pFiltEnv, 0.0f }, { pDrive, 0.0f }, { pVelDrive, 0.0f },
-            { pVibDepth, 0.2f }, { pVibRate, 6.2f }, { pVibDelay, 200 }, { pMwVibrato, 1.0f },
-            { pDlyTime, 3 }, { pDlyFb, 0.3f }, { pDlyMix, 0.2f }, { pRevMix, 0.28f }, { pOutput, -9.0f } } },
-
-        // 07 — wide supersaw
-        { "SUPERSAW", "Large · stéréo", {
+        // 04
+        { "SUPERSAW", "Large · stéréo", "LEAD", {
             { pOscAWave, 0 }, { pUnison, 7 }, { pDetune, 28 }, { pSpread, 1.0f },
             { pPoly, 1 }, { pGlide, 0 }, { pAmpA, 4 }, { pAmpR, 450 },
             { pCutoff, 4000 }, { pReso, 0.1f }, { pKeyTrack, 0.5f }, { pFiltEnv, 0.6f },
@@ -103,18 +81,8 @@ inline const std::vector<Preset>& factoryPresets()
             { pDlyTime, 5 }, { pDlyFb, 0.3f }, { pDlyMix, 0.18f }, { pRevMix, 0.25f },
             { pWidth, 1.4f }, { pComp, 0.45f }, { pOutput, -5.3f } } },
 
-        // 08 — Finger Bass: a real fingered electric bass, built as a plucked-string model
-        //      (finger pluck, vibrating string, bridge pickup, amp tone). Mono, every note re-plucks.
-        { "FINGER BASS", "Vraie basse aux doigts · corde et micro", {
-            { pEngine, 2 }, { pPoly, 0 }, { pGlide, 0 }, { pLegatoGlide, 1 },
-            { pBassTone, 0.55f }, { pBassPluck, 0.24f }, { pBassSustain, 4.0f }, { pBassPickup, 0.55f }, { pBassThump, 0.55f },
-            { pAmpA, 0.5f }, { pAmpD, 100 }, { pAmpS, 1.0f }, { pAmpR, 350 }, { pVelSens, 0.5f },
-            { pVibDepth, 0.0f }, { pMwVibrato, 0.25f }, { pPbRange, 2 },
-            { pDlyMix, 0.0f }, { pRevSize, 0.5f }, { pRevMix, 0.03f },
-            { pWidth, 0.0f }, { pComp, 0.6f }, { pOutput, -4.5f } } },
-
-        // 09 — short afro pluck
-        { "AFRO PLUCK", "Court · rythmique", {
+        // 05
+        { "AFRO PLUCK", "Court · rythmique", "LEAD", {
             { pOscAWave, 1 }, { pOscBWave, 0 }, { pOscBLevel, 0.4f }, { pOscBSemi, 12 },
             { pUnison, 2 }, { pDetune, 5 }, { pPoly, 1 }, { pGlide, 0 },
             { pAmpA, 1 }, { pAmpD, 260 }, { pAmpS, 0.0f }, { pAmpR, 200 },
@@ -122,9 +90,52 @@ inline const std::vector<Preset>& factoryPresets()
             { pFiltD, 160 }, { pFiltS, 0.0f }, { pDrive, 0.2f },
             { pDlyTime, 3 }, { pDlyFb, 0.35f }, { pDlyMix, 0.25f }, { pRevMix, 0.18f }, { pComp, 0.4f }, { pOutput, -6.2f } } },
 
-        // 10 — String Glide: strings blended with a heavy dark pad; chords glide into each other
-        //      (Glide knob = chord glide time)
-        { "STRING GLIDE", "Cordes + pad dark lourd · glide d'accords", {
+        // 06
+        { "SIGNLY", "Lead sinus · delays qui s'empilent", "LEAD", {
+            { pOscAWave, 2 }, { pOscBWave, 2 }, { pOscBLevel, 0.12f }, { pOscBSemi, 12 }, { pUnison, 1 }, { pSubLevel, 0.0f }, { pNoise, 0.0f },
+            { pPoly, 0 }, { pGlide, 35 }, { pLegatoGlide, 1 },
+            { pAmpA, 8 }, { pAmpD, 600 }, { pAmpS, 0.9f }, { pAmpR, 260 }, { pVelSens, 0.3f },
+            { pCutoff, 4200 }, { pReso, 0.0f }, { pKeyTrack, 0.4f }, { pFiltEnv, 0.3f }, { pVelCutoff, 0.2f },
+            { pDrive, 0.08f }, { pVelDrive, 0.1f },
+            { pVibRate, 5.4f }, { pVibDepth, 0.12f }, { pVibDelay, 320 }, { pMwVibrato, 0.0f }, { pMwDelay, 1.0f }, { pPbRange, 2 },
+            { pDlyTime, 3 }, { pDlyFb, 0.55f }, { pDlyMix, 0.55f }, { pDlyPingPong, 1 }, { pDlyHP, 250 }, { pDlyLP, 4200 }, { pDlyDuck, 0.0f }, { pDlyBloom, 1.0f },
+            { pRevSize, 0.9f }, { pRevDamp, 0.55f }, { pRevMix, 0.2f }, { pWidth, 1.1f }, { pComp, 0.35f }, { pOutput, -11.4f } } },
+
+        // 07
+        { "ARP PULSE", "Arpège doux · doubles croches · ping-pong", "ARP", {
+            { pArp, 1 }, { pArpRate, 2 }, { pArpMode, 2 }, { pArpOct, 2 }, { pArpGate, 0.5f },
+            { pOscAWave, 0 }, { pOscBWave, 1 }, { pOscBLevel, 0.3f }, { pOscBSemi, 12 }, { pUnison, 3 }, { pDetune, 8 }, { pSpread, 0.6f },
+            { pPoly, 1 }, { pGlide, 0 },
+            { pAmpA, 1 }, { pAmpD, 220 }, { pAmpS, 0.0f }, { pAmpR, 180 }, { pVelSens, 0.4f },
+            { pCutoff, 1100 }, { pReso, 0.22f }, { pKeyTrack, 0.8f }, { pFiltEnv, 2.8f }, { pFiltD, 160 }, { pFiltS, 0.0f }, { pVelCutoff, 0.8f },
+            { pDrive, 0.1f }, { pVelDrive, 0.1f }, { pMwFilter, 0.6f }, { pMwVibrato, 0.0f }, { pVibDepth, 0.0f },
+            { pDlyTime, 3 }, { pDlyFb, 0.35f }, { pDlyMix, 0.35f }, { pDlyPingPong, 1 }, { pDlyDuck, 0.3f },
+            { pRevSize, 0.8f }, { pRevMix, 0.2f }, { pWidth, 1.2f }, { pComp, 0.4f }, { pOutput, 5.0f } } },
+
+        // 08
+        { "ARP CRYSTAL", "Arpège de glockenspiel · cristallin", "ARP", {
+            { pArp, 1 }, { pArpRate, 0 }, { pArpMode, 4 }, { pArpOct, 2 }, { pArpGate, 0.5f },
+            { pSmpSet, 5 }, { pSmpLevel, 1.0f }, { pPadLevel, 0.0f },
+            { pPoly, 1 }, { pGlide, 0 },
+            { pAmpA, 0.5f }, { pAmpD, 400 }, { pAmpS, 1.0f }, { pAmpR, 1500 }, { pVelSens, 0.5f },
+            { pVibDepth, 0.0f }, { pMwVibrato, 0.0f }, { pMwBuild, 0.0f }, { pMwFilter, 0.0f },
+            { pDlyTime, 3 }, { pDlyFb, 0.38f }, { pDlyMix, 0.42f }, { pDlyPingPong, 1 }, { pDlyHP, 600 }, { pDlyDuck, 0.15f },
+            { pRevHall, 1 }, { pRevSize, 0.8f }, { pRevDamp, 0.45f }, { pRevMix, 0.3f }, { pWidth, 1.2f }, { pComp, 0.3f }, { pOutput, -10.8f } } },
+
+        // 09
+        { "ARP DRIVE", "Accord répété · saw lourd · avec BUILD", "ARP", {
+            { pArp, 1 }, { pArpRate, 2 }, { pArpMode, 3 }, { pArpGate, 0.55f },
+            { pOscAWave, 0 }, { pUnison, 7 }, { pDetune, 18 }, { pSpread, 0.9f },
+            { pOscBWave, 1 }, { pOscBLevel, 0.4f }, { pOscBSemi, -12 }, { pSubLevel, 0.4f },
+            { pPoly, 1 }, { pGlide, 0 },
+            { pAmpA, 1 }, { pAmpD, 180 }, { pAmpS, 0.35f }, { pAmpR, 120 }, { pVelSens, 0.45f },
+            { pCutoff, 1400 }, { pReso, 0.2f }, { pKeyTrack, 0.6f }, { pFiltEnv, 1.8f }, { pFiltD, 140 }, { pFiltS, 0.3f },
+            { pDrive, 0.45f }, { pVelDrive, 0.3f }, { pMwBuild, 1.0f }, { pMwVibrato, 0.0f }, { pVibDepth, 0.0f },
+            { pDlyTime, 2 }, { pDlyFb, 0.25f }, { pDlyMix, 0.15f }, { pDlyDuck, 0.5f },
+            { pRevMix, 0.15f }, { pWidth, 1.2f }, { pComp, 0.55f }, { pOutput, -6.6f } } },
+
+        // 10
+        { "STRING GLIDE", "Cordes + pad dark lourd · glide d'accords", "NAPPE", {
             { pEngine, 0 }, { pPoly, 1 }, { pGlide, 380 }, { pScoop, -2.0f },
             { pOscAWave, 0 }, { pUnison, 7 }, { pDetune, 14 }, { pSpread, 0.9f },
             { pOscBWave, 0 }, { pOscBLevel, 0.6f }, { pOscBSemi, -12 }, { pOscBDetune, -4 },
@@ -137,37 +148,102 @@ inline const std::vector<Preset>& factoryPresets()
             { pDlyTime, 5 }, { pDlyFb, 0.2f }, { pDlyMix, 0.05f }, { pDlyDuck, 0.5f },
             { pRevSize, 0.88f }, { pRevDamp, 0.55f }, { pRevMix, 0.32f }, { pWidth, 1.3f }, { pComp, 0.45f }, { pOutput, -3.9f } } },
 
-        // 11 — Elle Glide: EP on top, a low Rhodes underneath, and a low drone shimmer pad
-        //      that only swells while you keep your hands on the keys (Glide knob = chord glide)
-        { "ELLE GLIDE", "EP · Rhodes doux · pad drone shimmer", {
-            { pEngine, 1 }, { pEpModel, 1 }, { pEpLevel, 1.0f }, { pEpBark, 0.3f }, { pEpDecay, 5.0f },
-            { pRhodesMix, 0.35f }, { pEpTrem, 0.06f }, { pMwTrem, 0.6f },
-            { pPadLevel, 0.17f }, { pShimmer, 0.5f }, { pScoop, -1.5f },
-            { pOscAWave, 0 }, { pUnison, 5 }, { pDetune, 9 }, { pSpread, 0.95f },
-            { pOscBWave, 2 }, { pOscBLevel, 0.6f }, { pOscBSemi, -12 },
-            { pSubLevel, 0.0f }, { pNoise, 0.0f },
-            { pPoly, 1 }, { pGlide, 180 },
-            { pAmpA, 2600 }, { pAmpD, 2000 }, { pAmpS, 1.0f }, { pAmpR, 220 }, { pVelSens, 0.45f },
-            { pCutoff, 520 }, { pReso, 0.05f }, { pKeyTrack, 0.4f }, { pFiltEnv, 0.0f }, { pVelCutoff, 0.0f },
-            { pDrive, 0.08f }, { pVelDrive, 0.0f },
-            { pVibDepth, 0.0f }, { pMwVibrato, 0.0f }, { pPbRange, 2 },
-            { pDlyTime, 5 }, { pDlyFb, 0.18f }, { pDlyMix, 0.06f }, { pDlyDuck, 0.5f },
-            { pRevSize, 0.88f }, { pRevDamp, 0.55f }, { pRevMix, 0.26f }, { pWidth, 1.2f }, { pComp, 0.4f }, { pOutput, -7.1f } } },
+        // 11
+        { "STRING DINSEI", "Vraies cordes d'orchestre · glides doux", "NAPPE", {
+            { pSmpSet, 1 }, { pSmpLevel, 1.0f }, { pPadLevel, 0.06f }, { pPoly, 1 }, { pGlide, 550 }, { pScoop, -1.0f },
+            { pOscAWave, 0 }, { pUnison, 5 }, { pDetune, 10 }, { pSpread, 0.9f }, { pOscBLevel, 0.0f }, { pSubLevel, 0.0f },
+            { pAmpA, 380 }, { pAmpD, 2000 }, { pAmpS, 1.0f }, { pAmpR, 1000 }, { pVelSens, 0.4f },
+            { pCutoff, 800 }, { pReso, 0.0f }, { pKeyTrack, 0.5f }, { pFiltEnv, 0.0f }, { pVelCutoff, 0.3f }, { pDrive, 0.0f }, { pVelDrive, 0.0f },
+            { pMwFilter, 0.8f }, { pMwVibrato, 0.0f }, { pVibDepth, 0.0f }, { pPbRange, 2 },
+            { pChorus, 0.0f }, { pDlyMix, 0.0f },
+            { pRevHall, 1 }, { pRevSize, 0.9f }, { pRevDamp, 0.55f }, { pRevMix, 0.36f }, { pWidth, 1.15f }, { pComp, 0.3f }, { pOutput, 0.4f } } },
 
-        // 12 — The Glide: played with chords. A warm EP layered on a deep pad; when you change chords,
-        // 13 — Glide Sine: pure sine chords, steady like a soft organ, no brightness, mono;
-        //      every chord change slides quickly into the next one, R&B style (Glide knob = slide time)
-        { "GLIDE SINE", "Accords sinus purs · glide R&B", {
-            { pEngine, 0 }, { pClean, 1 }, { pPoly, 1 }, { pGlide, 120 }, { pScoop, 0.0f },
-            { pOscAWave, 2 }, { pUnison, 1 }, { pDetune, 0 }, { pSpread, 0.0f },
-            { pOscBWave, 2 }, { pOscBLevel, 0.04f }, { pOscBSemi, 12 }, { pOscBDetune, 0 },
-            { pSubLevel, 0.0f }, { pNoise, 0.0f },
-            { pAmpA, 35 }, { pAmpD, 2000 }, { pAmpS, 1.0f }, { pAmpR, 180 }, { pVelSens, 0.15f },
-            { pCutoff, 8000 }, { pReso, 0.0f }, { pKeyTrack, 0.0f }, { pFiltEnv, 0.0f }, { pVelCutoff, 0.0f },
-            { pDrive, 0.0f }, { pVelDrive, 0.0f },
-            { pVibDepth, 0.0f }, { pMwVibrato, 0.3f }, { pMwBuild, 0.0f }, { pPbRange, 2 },
-            { pDlyMix, 0.0f }, { pRevSize, 0.7f }, { pRevDamp, 0.6f }, { pRevMix, 0.05f },
-            { pWidth, 0.0f }, { pComp, 0.2f }, { pOutput, -4.3f } } },
+        // 12
+        { "THE PRAYER", "Cordes très douces + nappe chaude", "NAPPE", {
+            { pSmpSet, 1 }, { pSmpLevel, 0.9f }, { pPadLevel, 0.45f },
+            { pOscAWave, 0 }, { pUnison, 4 }, { pDetune, 9 }, { pSpread, 0.8f },
+            { pOscBWave, 3 }, { pOscBLevel, 0.6f }, { pOscBSemi, 0 }, { pOscBDetune, -6 }, { pSubLevel, 0.3f }, { pSubOct, 0 }, { pNoise, 0.0f },
+            { pPoly, 1 }, { pGlide, 0 },
+            { pAmpA, 900 }, { pAmpD, 2500 }, { pAmpS, 1.0f }, { pAmpR, 1600 }, { pVelSens, 0.3f },
+            { pCutoff, 900 }, { pReso, 0.0f }, { pKeyTrack, 0.25f }, { pFiltEnv, 0.8f }, { pFiltA, 600 }, { pFiltD, 2500 }, { pFiltS, 0.5f }, { pFiltR, 1600 }, { pVelCutoff, 0.2f },
+            { pLfoRate, 0.1f }, { pLfoCut, 0.1f }, { pDrive, 0.0f }, { pVelDrive, 0.0f }, { pShimmer, 0.0f }, { pChorus, 0.3f },
+            { pMwFilter, 0.85f }, { pMwVibrato, 0.0f }, { pVibDepth, 0.0f },
+            { pDlyMix, 0.0f },
+            { pRevHall, 1 }, { pRevSize, 0.9f }, { pRevDamp, 0.6f }, { pRevMix, 0.34f }, { pWidth, 1.25f }, { pComp, 0.3f }, { pOutput, -2.3f } } },
+
+        // 13
+        { "HOLY G", "Orgue enregistré · Leslie à la molette", "CLAVIER", {
+            { pSmpSet, 4 }, { pSmpLevel, 1.0f }, { pOrgLevel, 0.0f }, { pPadLevel, 0.0f },
+            { pOrgReg, 0 }, { pOrgPerc, 0.3f }, { pOrgClick, 0.15f }, { pOrgVib, 3 }, { pOrgDrive, 0.1f }, { pLeslie, 1.0f },
+            { pPoly, 1 }, { pGlide, 0 }, { pAmpA, 1.5f }, { pAmpD, 100 }, { pAmpS, 1.0f }, { pAmpR, 20 }, { pVelSens, 0.0f },
+            { pVibDepth, 0.0f }, { pMwVibrato, 0.0f }, { pMwBuild, 0.0f }, { pMwFilter, 0.0f }, { pPbRange, 2 },
+            { pDlyMix, 0.0f }, { pRevHall, 1 }, { pRevSize, 0.45f }, { pRevDamp, 0.5f }, { pRevMix, 0.12f }, { pWidth, 1.0f }, { pComp, 0.3f }, { pOutput, 0.2f } } },
+
+        // 14
+        { "FIRE KEYS", "Piano + super saw + orgue · louanges rapides", "CLAVIER", {
+            { pSmpSet, 3 }, { pSmpLevel, 1.0f }, { pPadLevel, 0.22f }, { pMwPad, 0.5f },
+            { pOrgLevel, 0.28f }, { pOrgReg, 0 }, { pOrgPerc, 0.0f }, { pOrgClick, 0.2f }, { pOrgVib, 3 }, { pOrgDrive, 0.15f }, { pLeslie, 0.8f },
+            { pOscAWave, 0 }, { pUnison, 7 }, { pDetune, 16 }, { pSpread, 0.9f }, { pOscBLevel, 0.0f }, { pSubLevel, 0.0f },
+            { pPoly, 1 }, { pGlide, 0 },
+            { pAmpA, 2 }, { pAmpD, 1500 }, { pAmpS, 1.0f }, { pAmpR, 220 }, { pVelSens, 0.6f },
+            { pCutoff, 2600 }, { pReso, 0.05f }, { pKeyTrack, 0.6f }, { pFiltEnv, 0.8f }, { pFiltD, 400 }, { pFiltS, 0.6f }, { pDrive, 0.1f },
+            { pMwFilter, 0.0f }, { pMwBuild, 0.0f }, { pMwVibrato, 0.0f }, { pVibDepth, 0.0f }, { pPbRange, 2 },
+            { pDlyTime, 2 }, { pDlyFb, 0.2f }, { pDlyMix, 0.07f }, { pDlyDuck, 0.6f },
+            { pRevSize, 0.7f }, { pRevMix, 0.14f }, { pWidth, 1.15f }, { pComp, 0.45f }, { pOutput, -4.6f } } },
+
+        // 15
+        { "GLORY BRASS", "Section de cuivres · stabs et notes tenues", "CUIVRE", {
+            { pSmpSet, 2 }, { pSmpLevel, 1.0f }, { pSmpStac, 0.9f }, { pPadLevel, 0.08f },
+            { pOscAWave, 0 }, { pUnison, 3 }, { pDetune, 8 }, { pSpread, 0.6f }, { pOscBLevel, 0.0f }, { pSubLevel, 0.0f },
+            { pPoly, 1 }, { pGlide, 0 },
+            { pAmpA, 3 }, { pAmpD, 800 }, { pAmpS, 1.0f }, { pAmpR, 180 }, { pVelSens, 0.55f },
+            { pCutoff, 1500 }, { pReso, 0.05f }, { pKeyTrack, 0.7f }, { pFiltEnv, 2.0f }, { pFiltA, 30 }, { pFiltD, 400 }, { pFiltS, 0.4f }, { pDrive, 0.1f },
+            { pMwFilter, 1.0f }, { pMwVibrato, 0.0f }, { pVibDepth, 0.0f }, { pPbRange, 2 },
+            { pDlyMix, 0.0f }, { pRevSize, 0.75f }, { pRevMix, 0.18f }, { pWidth, 1.1f }, { pComp, 0.45f }, { pOutput, -5.4f } } },
+
+        // 16
+        { "FINGER BASS", "Vraie basse aux doigts · corde et micro", "BASSE", {
+            { pEngine, 2 }, { pPoly, 0 }, { pGlide, 0 }, { pLegatoGlide, 1 },
+            { pBassTone, 0.55f }, { pBassPluck, 0.24f }, { pBassSustain, 4.0f }, { pBassPickup, 0.55f }, { pBassThump, 0.55f },
+            { pAmpA, 0.5f }, { pAmpD, 100 }, { pAmpS, 1.0f }, { pAmpR, 350 }, { pVelSens, 0.5f },
+            { pVibDepth, 0.0f }, { pMwVibrato, 0.25f }, { pPbRange, 2 },
+            { pDlyMix, 0.0f }, { pRevSize, 0.5f }, { pRevMix, 0.03f },
+            { pWidth, 0.0f }, { pComp, 0.6f }, { pOutput, -4.5f } } },
+
+        // 17
+        { "SYNTH BASS", "Basse ronde et punchy · style Moog", "BASSE", {
+            { pOscAWave, 0 }, { pOscBWave, 1 }, { pOscBLevel, 0.6f }, { pOscBSemi, 0 }, { pOscBDetune, 7 }, { pUnison, 1 }, { pSubLevel, 0.55f }, { pSubOct, 0 },
+            { pPoly, 0 }, { pGlide, 45 }, { pLegatoGlide, 1 },
+            { pAmpA, 1 }, { pAmpD, 600 }, { pAmpS, 0.75f }, { pAmpR, 90 }, { pVelSens, 0.4f },
+            { pCutoff, 230 }, { pReso, 0.38f }, { pKeyTrack, 0.5f }, { pFiltEnv, 3.3f }, { pFiltA, 1 }, { pFiltD, 210 }, { pFiltS, 0.18f }, { pFiltR, 120 }, { pVelCutoff, 1.0f },
+            { pDrive, 0.35f }, { pVelDrive, 0.3f }, { pVibDepth, 0.0f }, { pMwVibrato, 0.0f }, { pMwFilter, 0.6f }, { pPbRange, 2 },
+            { pDlyMix, 0.0f }, { pRevMix, 0.02f }, { pWidth, 0.0f }, { pComp, 0.6f }, { pOutput, -4.7f } } },
+
+        // 18
+        { "SUB BASS", "Sub profonde style 808 · glide", "BASSE", {
+            { pOscAWave, 2 }, { pOscBLevel, 0.0f }, { pUnison, 1 }, { pSubLevel, 0.0f }, { pNoise, 0.0f },
+            { pPoly, 0 }, { pGlide, 70 }, { pLegatoGlide, 1 },
+            { pAmpA, 1 }, { pAmpD, 2500 }, { pAmpS, 0.55f }, { pAmpR, 160 }, { pVelSens, 0.35f },
+            { pCutoff, 9000 }, { pReso, 0.0f }, { pKeyTrack, 0.0f }, { pFiltEnv, 0.0f }, { pVelCutoff, 0.0f },
+            { pDrive, 0.3f }, { pVelDrive, 0.2f }, { pPitchEnv, 7.0f }, { pPitchEnvTime, 25 },
+            { pVibDepth, 0.0f }, { pMwVibrato, 0.0f }, { pMwBuild, 0.6f }, { pPbRange, 12 },
+            { pDlyMix, 0.0f }, { pRevMix, 0.0f }, { pWidth, 0.0f }, { pComp, 0.5f }, { pOutput, -6.5f } } },
+
+        // 19
+        { "RISER", "Montée synchronisée au tempo", "FX", {
+            { pRiser, 1 }, { pRiserBars, 2 }, { pRiserPitch, 12 },
+            { pOscAWave, 0 }, { pUnison, 7 }, { pDetune, 22 }, { pSpread, 1.0f }, { pOscBWave, 0 }, { pOscBLevel, 0.35f }, { pOscBSemi, 12 }, { pNoise, 0.1f },
+            { pPoly, 1 }, { pGlide, 0 },
+            { pAmpA, 30 }, { pAmpD, 1000 }, { pAmpS, 1.0f }, { pAmpR, 400 }, { pVelSens, 0.2f },
+            { pCutoff, 350 }, { pReso, 0.3f }, { pKeyTrack, 0.3f }, { pFiltEnv, 0.0f }, { pVelCutoff, 0.0f },
+            { pDrive, 0.2f }, { pVelDrive, 0.0f }, { pVibDepth, 0.0f }, { pMwVibrato, 0.0f }, { pMwBuild, 0.0f },
+            { pDlyTime, 2 }, { pDlyFb, 0.3f }, { pDlyMix, 0.15f }, { pDlyDuck, 0.0f },
+            { pRevSize, 0.9f }, { pRevMix, 0.25f }, { pWidth, 1.4f }, { pComp, 0.5f }, { pOutput, -7.7f } } },
+
+        // 20
+        { "FX KIT", "20 effets · un par touche (Do3 à Sol4)", "FX", {
+            { pEngine, 3 }, { pPoly, 1 }, { pGlide, 0 }, { pVelSens, 0.0f }, { pVibDepth, 0.0f }, { pMwVibrato, 0.0f },
+            { pDlyMix, 0.0f }, { pRevSize, 0.88f }, { pRevDamp, 0.45f }, { pRevMix, 0.25f }, { pWidth, 1.1f }, { pComp, 0.35f }, { pOutput, -4.6f } } },
     };
     return presets;
 }

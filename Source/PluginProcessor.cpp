@@ -1,7 +1,49 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
+#include <mutex>
+#include <thread>
+
 using namespace dsynth;
+
+namespace
+{
+    // The sample bank (strings, brass, piano) is shared by every D-SYNTH instance and loaded once,
+    // on a background thread, from the folder the installer fills.
+    struct SharedBank
+    {
+        std::mutex lock;
+        std::shared_ptr<SampleBank> bank;
+        std::atomic<bool> loading { false }, done { false };
+
+        static juce::Array<juce::File> candidates()
+        {
+            const auto common = juce::File::getSpecialLocation (juce::File::commonApplicationDataDirectory);
+            const auto user = juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory);
+           #if JUCE_MAC
+            return { common.getChildFile ("Application Support/Danova/D-SYNTH/Samples"),
+                     user.getChildFile ("Application Support/Danova/D-SYNTH/Samples") };
+           #else
+            return { common.getChildFile ("Danova/D-SYNTH/Samples"), user.getChildFile ("Danova/D-SYNTH/Samples") };
+           #endif
+        }
+
+        void startLoading()
+        {
+            if (loading.exchange (true)) return;
+            std::thread ([this]
+            {
+                auto b = std::make_shared<SampleBank>();
+                for (auto& dir : candidates())
+                    if (dir.getChildFile ("samples.txt").existsAsFile() && b->load (dir.getFullPathName().toStdString()))
+                        break;
+                { std::lock_guard<std::mutex> g (lock); bank = b; }
+                done = true;
+            }).detach();
+        }
+    };
+    SharedBank& sharedBank() { static SharedBank s; return s; }
+}
 
 DSynthProcessor::DSynthProcessor()
     : AudioProcessor (BusesProperties().withOutput ("Output", juce::AudioChannelSet::stereo(), true)),
@@ -11,7 +53,23 @@ DSynthProcessor::DSynthProcessor()
     for (int i = 0; i < kNumParams; ++i)
         rawParams[(size_t) i] = apvts.getRawParameterValue (table[(size_t) i].id);
 
+    for (auto& n : uiNotes) n = 0;
     setCurrentProgram (0);
+    sharedBank().startLoading();
+    startTimer (250);
+}
+
+DSynthProcessor::~DSynthProcessor() { stopTimer(); }
+
+// hands the sample bank to the engine as soon as the loader has finished
+void DSynthProcessor::timerCallback()
+{
+    auto& sb = sharedBank();
+    if (! sb.done) return;
+    std::lock_guard<std::mutex> g (sb.lock);
+    bankRef = sb.bank;
+    engine.setSampleBank (bankRef.get());
+    stopTimer();
 }
 
 juce::AudioProcessorValueTreeState::ParameterLayout DSynthProcessor::createLayout()
@@ -46,6 +104,12 @@ juce::AudioProcessorValueTreeState::ParameterLayout DSynthProcessor::createLayou
                 else if (std::strcmp (p.id, "subOct") == 0)   choices = { "-1 Oct", "-2 Oct" };
                 else if (std::strcmp (p.id, "engine") == 0)   for (auto* n : kEngineNames) choices.add (n);
                 else if (std::strcmp (p.id, "epModel") == 0)  for (auto* n : kEpModelNames) choices.add (n);
+                else if (std::strcmp (p.id, "arpRate") == 0)  for (auto* n : kArpRateNames) choices.add (n);
+                else if (std::strcmp (p.id, "arpMode") == 0)  for (auto* n : kArpModeNames) choices.add (n);
+                else if (std::strcmp (p.id, "orgReg") == 0)   for (auto* n : kOrgRegNames) choices.add (n);
+                else if (std::strcmp (p.id, "orgVib") == 0)   for (auto* n : kOrgVibNames) choices.add (n);
+                else if (std::strcmp (p.id, "smpSet") == 0)   for (auto* n : kSmpSetNames) choices.add (n);
+                else if (std::strcmp (p.id, "riserBars") == 0) for (auto* n : kRiserBarNames) choices.add (n);
                 else                                          for (auto* n : kWaveNames) choices.add (n);
                 layout.add (std::make_unique<juce::AudioParameterChoice> (pid, p.name, choices, (int) p.def));
                 break;
@@ -79,8 +143,16 @@ void DSynthProcessor::pushParamsToEngine()
 
 void DSynthProcessor::handleMidi (const juce::MidiMessage& m)
 {
-    if (m.isNoteOn())                      engine.noteOn (m.getNoteNumber(), m.getFloatVelocity());
-    else if (m.isNoteOff())                engine.noteOff (m.getNoteNumber());
+    if (m.isNoteOn())
+    {
+        engine.noteOn (m.getNoteNumber(), m.getFloatVelocity());
+        uiNotes[(size_t) m.getNoteNumber()] = 1;
+    }
+    else if (m.isNoteOff())
+    {
+        engine.noteOff (m.getNoteNumber());
+        uiNotes[(size_t) m.getNoteNumber()] = pedalDown ? 2 : 0;
+    }
     else if (m.isPitchWheel())
     {
         const float v = (float) (m.getPitchWheelValue() - 8192) / 8192.0f;
@@ -91,9 +163,17 @@ void DSynthProcessor::handleMidi (const juce::MidiMessage& m)
         const float v = (float) m.getControllerValue() / 127.0f;
         engine.modWheel (v); uiModWheel = v;
     }
-    else if (m.isSustainPedalOn())         engine.sustainPedal (true);
-    else if (m.isSustainPedalOff())        engine.sustainPedal (false);
-    else if (m.isAllNotesOff() || m.isAllSoundOff()) engine.allNotesOff();
+    else if (m.isSustainPedalOn())  { engine.sustainPedal (true); pedalDown = true; }
+    else if (m.isSustainPedalOff())
+    {
+        engine.sustainPedal (false); pedalDown = false;
+        for (auto& n : uiNotes) if (n.load() == 2) n = 0;
+    }
+    else if (m.isAllNotesOff() || m.isAllSoundOff())
+    {
+        engine.allNotesOff();
+        for (auto& n : uiNotes) n = 0;
+    }
 }
 
 void DSynthProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi)
@@ -103,8 +183,10 @@ void DSynthProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
 
     if (auto* ph = getPlayHead())
         if (auto pos = ph->getPosition())
-            if (auto bpm = pos->getBpm())
-                engine.setTempo (*bpm);
+        {
+            if (auto bpm = pos->getBpm()) engine.setTempo (*bpm);
+            if (auto ppq = pos->getPpqPosition()) engine.setTransport (*ppq, pos->getIsPlaying());
+        }
 
     pushParamsToEngine();
     keyboardState.processNextMidiBuffer (midi, 0, numSamples, true);
