@@ -1,4 +1,5 @@
 #include "PluginEditor.h"
+#include "SkinRects.h"
 #include "BinaryData.h"
 
 using namespace dsynth;
@@ -31,14 +32,10 @@ namespace
 
     const char* kCats[] = { "TOUS", "FAVORIS", "LEAD", "ARP", "NAPPE", "CLAVIER", "CUIVRE", "BASSE", "FX" };
 
-    // native layout, 1320 x 820 (matches the validated 3D mock-up)
-    const juce::Rectangle<float> kPanel  (46, 0, 1228, 820);
-    const juce::Rectangle<float> kBezel  (74, 154, 796, 262);
-    const juce::Rectangle<float> kBuild  (1016, 160, 200, 200);
-    const juce::Rectangle<float> kWheels (74, 568, 132, 230);
-    const juce::Rectangle<float> kKeyBox (224, 568, 1022, 230);
 
-    juce::Point<float> knobCentre (int i) { return { 98.0f + (1124.0f / 6.0f) * ((float) i + 0.5f), 476.0f }; }
+    // positions measured in the approved mockup (tools/skin)
+    juce::Rectangle<float> sk (const float r[4]) { return { r[0], r[1], r[2], r[3] }; }
+    juce::Image skinImage (const void* d, int n) { return juce::ImageCache::getFromMemory (d, n); }
 
     void drawSpaced (juce::Graphics& g, const juce::Font& f, const juce::String& text, float x, float y,
                      float spacing, juce::Justification just = juce::Justification::left, float width = 0)
@@ -100,89 +97,44 @@ DSynthLookAndFeel::DSynthLookAndFeel()
     tfScreen    = juce::Typeface::createSystemTypefaceFor (BinaryData::ShareTechMonoRegular_ttf, BinaryData::ShareTechMonoRegular_ttfSize);
 }
 
-juce::Font DSynthLookAndFeel::logo (float h) const      { return juce::Font (juce::FontOptions (tfLogo).withHeight (h)); }
-juce::Font DSynthLookAndFeel::label (float h) const     { return juce::Font (juce::FontOptions (tfLabel).withHeight (h)); }
-juce::Font DSynthLookAndFeel::labelBold (float h) const { return juce::Font (juce::FontOptions (tfLabelBold).withHeight (h)); }
-juce::Font DSynthLookAndFeel::screen (float h) const    { return juce::Font (juce::FontOptions (tfScreen).withHeight (h)); }
+juce::Font DSynthLookAndFeel::logo (float h) const      { return juce::Font (juce::FontOptions (tfLogo).withPointHeight (h)); }
+juce::Font DSynthLookAndFeel::label (float h) const     { return juce::Font (juce::FontOptions (tfLabel).withPointHeight (h)); }
+juce::Font DSynthLookAndFeel::labelBold (float h) const { return juce::Font (juce::FontOptions (tfLabelBold).withPointHeight (h)); }
+juce::Font DSynthLookAndFeel::screen (float h) const    { return juce::Font (juce::FontOptions (tfScreen).withPointHeight (h)); }
 
-// Machined metal knob: knurled skirt, polished cap catching the light, white pointer, amber value ring
+// The knob bodies are part of the skin (rendered from the mockup); here only what moves:
+// the white pointer, and for BUILD the amber ring (conic amber -> light amber, 9 px, like the mockup)
 void DSynthLookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, int w, int h, float pos,
                                           float startAngle, float endAngle, juce::Slider& s)
 {
     const bool big = (bool) s.getProperties()["big"];
-    auto area = juce::Rectangle<float> ((float) x, (float) y, (float) w, (float) h);
-    const float size = juce::jmin (area.getWidth(), area.getHeight());
-    auto box = area.withSizeKeepingCentre (size, size);
+    auto box = juce::Rectangle<float> ((float) x, (float) y, (float) w, (float) h);
+    const float size = juce::jmin (box.getWidth(), box.getHeight());
+    box = box.withSizeKeepingCentre (size, size);
     const auto c = box.getCentre();
     const float angle = startAngle + pos * (endAngle - startAngle);
-
-    // value ring
-    const float ringW = big ? 9.0f : 3.0f;
-    const float ringR = size * 0.5f - ringW * 0.5f - 1.0f;
-    {
-        juce::Path track; track.addCentredArc (c.x, c.y, ringR, ringR, 0, startAngle, endAngle, true);
-        g.setColour (juce::Colour (0xff2a1d09));
-        g.strokePath (track, juce::PathStrokeType (ringW, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
-        if (pos > 0.002f)
-        {
-            juce::Path val; val.addCentredArc (c.x, c.y, ringR, ringR, 0, startAngle, angle, true);
-            if (big)
-            {
-                g.setColour (amber.withAlpha (0.18f));
-                g.strokePath (val, juce::PathStrokeType (ringW + 10.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
-            }
-            g.setGradientFill (juce::ColourGradient (amber, box.getX(), box.getBottom(), amberLight, box.getRight(), box.getY(), false));
-            g.strokePath (val, juce::PathStrokeType (ringW, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
-        }
-    }
-
-    auto knob = box.reduced (big ? 28.0f : 9.0f);
-    const float r = knob.getWidth() * 0.5f;
+    float knobSize = size;
     if (big)
     {
-        g.setColour (juce::Colour (0xff111113));
-        g.fillEllipse (box.reduced (ringW + 4.0f));
+        knobSize = size * 148.0f / 200.0f;
+        if (pos > 0.002f)
+        {
+            const float ringR = size * 0.5f - 4.5f;
+            juce::Path val; val.addCentredArc (c.x, c.y, ringR, ringR, 0, startAngle, angle, true);
+            const auto p0 = c.getPointOnCircumference (ringR, startAngle), p1 = c.getPointOnCircumference (ringR, angle);
+            g.setGradientFill (juce::ColourGradient (amber, p0.x, p0.y, pos > 0.05f ? amberLight : amber, p1.x, p1.y, false));
+            g.strokePath (val, juce::PathStrokeType (9.0f, juce::PathStrokeType::curved, juce::PathStrokeType::butt));
+            g.setColour (amber.withAlpha (0.12f));
+            g.strokePath (val, juce::PathStrokeType (16.0f, juce::PathStrokeType::curved, juce::PathStrokeType::butt));
+        }
     }
-    // shadow under the knob
-    g.setColour (juce::Colours::black.withAlpha (0.7f));
-    g.fillEllipse (knob.translated (0, r * 0.22f).expanded (r * 0.05f));
-
-    // knurled skirt: alternating light / dark facets
-    const int facets = big ? 72 : 40;
-    for (int i = 0; i < facets; ++i)
-    {
-        const float a0 = juce::MathConstants<float>::twoPi * (float) i / (float) facets;
-        const float a1 = juce::MathConstants<float>::twoPi * (float) (i + 1) / (float) facets;
-        const float light = 0.5f + 0.5f * std::cos (a0 - 2.3f);
-        const auto col = juce::Colour (0xff2a2a2d).interpolatedWith (juce::Colour (0xff6e6e73), light * ((i & 1) ? 1.0f : 0.55f));
-        juce::Path wedge;
-        wedge.addPieSegment (knob, a0, a1 + 0.01f, 0.0f);
-        g.setColour (col);
-        g.fillPath (wedge);
-    }
-    g.setColour (juce::Colours::white.withAlpha (0.12f));
-    g.drawEllipse (knob.reduced (0.5f), 1.0f);
-
-    // polished cap
-    auto cap = knob.reduced (r * 0.18f);
-    juce::ColourGradient cg (juce::Colour (0xff9c9ca2), cap.getX() + cap.getWidth() * 0.34f, cap.getY() + cap.getHeight() * 0.28f,
-                             juce::Colour (0xff1d1d20), cap.getRight(), cap.getBottom(), true);
-    cg.addColour (0.42, juce::Colour (0xff45454a));
-    g.setGradientFill (cg);
-    g.fillEllipse (cap);
-    g.setColour (juce::Colours::black.withAlpha (0.5f));
-    g.drawEllipse (cap, 1.0f);
-    // specular highlight
-    g.setColour (juce::Colours::white.withAlpha (0.16f));
-    g.fillEllipse (cap.getX() + cap.getWidth() * 0.2f, cap.getY() + cap.getHeight() * 0.12f, cap.getWidth() * 0.35f, cap.getHeight() * 0.22f);
-
-    // pointer
-    const float inner = r * 0.30f, outer = r * 0.92f;
+    // pointer: 3 px, from 9 % to 33 % of the knob from its edge (as .ptr in the mockup)
+    const float outer = knobSize * 0.41f, inner = knobSize * 0.17f;
     juce::Line<float> line (c.getPointOnCircumference (inner, angle), c.getPointOnCircumference (outer, angle));
-    g.setColour (juce::Colours::white.withAlpha (0.25f));
-    g.drawLine (line, big ? 6.0f : 4.5f);
+    g.setColour (juce::Colours::white.withAlpha (0.22f));
+    g.drawLine (line, 5.0f);
     g.setColour (juce::Colour (0xfff3eee3));
-    g.drawLine (line, big ? 3.5f : 2.6f);
+    g.drawLine (line, 3.0f);
 }
 
 //==============================================================================
@@ -215,91 +167,26 @@ void Favourites::save (const juce::StringArray& a)
 //==============================================================================
 void HardButton::paintButton (juce::Graphics& g, bool over, bool down)
 {
-    auto all = getLocalBounds().toFloat();
-    auto r = all;
-    if (led)
+    // the buttons are drawn in the skin; the selected category is copied from the "pressed" skin by the panel
+    juce::ignoreUnused (over);
+    auto r = getLocalBounds().toFloat();
+    if (down && ! led)
     {
-        // LED above the button
-        auto ledArea = r.removeFromTop (15.0f);
-        const auto l = juce::Rectangle<float> (8, 8).withCentre ({ ledArea.getCentreX(), ledArea.getY() + 4.0f });
-        if (lit)
-        {
-            g.setColour (DSynthLookAndFeel::amber.withAlpha (0.35f));
-            g.fillEllipse (l.expanded (6));
-            juce::ColourGradient lg (juce::Colour (0xfffff3d6), l.getX() + 3, l.getY() + 3, DSynthLookAndFeel::amber, l.getRight(), l.getBottom(), true);
-            g.setGradientFill (lg);
-        }
-        else g.setColour (juce::Colour (0xff3a2a10));
-        g.fillEllipse (l);
-        g.setColour (juce::Colours::black.withAlpha (0.6f));
-        g.drawEllipse (l, 0.8f);
+        g.setColour (juce::Colours::black.withAlpha (0.25f));
+        g.fillRoundedRectangle (r.reduced (1.0f), 8.0f);
     }
-
-    const bool pressed = down || (led && lit);
-    if (pressed) r.translate (0, 2.0f);
-    const float rad = 6.0f;
-    // drop shadow
-    if (! pressed)
+    if (icon == Icon::Star && lit)
     {
-        g.setColour (juce::Colours::black.withAlpha (0.65f));
-        g.fillRoundedRectangle (r.translated (0, 4.0f), rad);
-    }
-    juce::ColourGradient body (pressed ? juce::Colour (0xff2e2e31) : juce::Colour (0xff404044), 0, r.getY(),
-                               pressed ? juce::Colour (0xff151517) : juce::Colour (0xff1a1a1c), 0, r.getBottom(), false);
-    body.addColour (0.52, pressed ? juce::Colour (0xff1c1c1e) : juce::Colour (0xff242427));
-    g.setGradientFill (body);
-    g.fillRoundedRectangle (r, rad);
-    if (over && ! pressed)
-    {
-        g.setColour (juce::Colours::white.withAlpha (0.04f));
-        g.fillRoundedRectangle (r, rad);
-    }
-    // glossy reflection on the top half
-    auto gloss = r.reduced (6.0f, 2.0f).withHeight (r.getHeight() * 0.42f);
-    g.setGradientFill (juce::ColourGradient (juce::Colours::white.withAlpha (pressed ? 0.08f : 0.16f), 0, gloss.getY(),
-                                             juce::Colours::white.withAlpha (0.0f), 0, gloss.getBottom(), false));
-    g.fillRoundedRectangle (gloss, 5.0f);
-    // edges
-    g.setColour (juce::Colours::white.withAlpha (pressed ? 0.08f : 0.2f));
-    g.drawHorizontalLine ((int) r.getY() + 1, r.getX() + rad, r.getRight() - rad);
-    g.setColour (juce::Colour (0xff070707));
-    g.drawRoundedRectangle (r, rad, 1.0f);
-
-    const auto col = (led && lit) ? DSynthLookAndFeel::amber : (icon == Icon::Star ? DSynthLookAndFeel::amber : DSynthLookAndFeel::textSoft);
-    if (icon == Icon::None)
-    {
-        g.setColour (col);
-        drawSpaced (g, lnf.labelBold (15.0f), getButtonText(), r.getX(), r.getCentreY() - 9.0f, 2.0f, juce::Justification::horizontallyCentred, r.getWidth());
-        return;
-    }
-    const auto cc = r.getCentre();
-    juce::Path p;
-    if (icon == Icon::Prev || icon == Icon::Next)
-    {
-        const float s = icon == Icon::Prev ? -1.0f : 1.0f;
-        p.startNewSubPath (cc.x - 4.0f * s, cc.y - 8.0f);
-        p.lineTo (cc.x + 4.0f * s, cc.y);
-        p.lineTo (cc.x - 4.0f * s, cc.y + 8.0f);
-        g.setColour (DSynthLookAndFeel::ink);
-        g.strokePath (p, juce::PathStrokeType (2.6f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
-    }
-    else
-    {
-        p.addStar (cc, 5, 5.0f, 12.0f, 0.0f);
-        if (lit)
-        {
-            g.setColour (DSynthLookAndFeel::amber.withAlpha (0.25f));
-            g.strokePath (p, juce::PathStrokeType (6.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
-            g.setColour (DSynthLookAndFeel::amber);
-            g.fillPath (p);
-            g.setColour (DSynthLookAndFeel::amberLight);
-            g.strokePath (p, juce::PathStrokeType (1.2f));
-        }
-        else
-        {
-            g.setColour (DSynthLookAndFeel::textSoft);
-            g.strokePath (p, juce::PathStrokeType (1.8f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
-        }
+        // filled star of the mockup (24 px icon centred in the button)
+        const auto cc = r.getCentre();
+        juce::Path p;
+        const float pts[][2] = { { 12, 3 }, { 14.7f, 8.6f }, { 20.8f, 9.5f }, { 16.4f, 13.8f }, { 17.4f, 19.9f }, { 12, 17 }, { 6.6f, 19.9f }, { 7.6f, 13.8f }, { 3.2f, 9.5f }, { 9.3f, 8.6f } };
+        p.startNewSubPath (cc.x + pts[0][0] - 12, cc.y + pts[0][1] - 12);
+        for (int i = 1; i < 10; ++i) p.lineTo (cc.x + pts[i][0] - 12, cc.y + pts[i][1] - 12);
+        p.closeSubPath();
+        g.setColour (juce::Colour (0xff26262a)); g.fillEllipse (juce::Rectangle<float> (30, 30).withCentre (cc));   // hide the outline star of the skin
+        g.setColour (DSynthLookAndFeel::amber); g.fillPath (p);
+        g.setColour (DSynthLookAndFeel::amberLight); g.strokePath (p, juce::PathStrokeType (1.2f));
     }
 }
 
@@ -312,31 +199,15 @@ void Wheel::setValue (float v)
 
 void Wheel::paint (juce::Graphics& g)
 {
+    // ribbed wheel is in the skin; the amber mark shows the position (pitch: only when bent)
     auto r = getLocalBounds().toFloat();
-    juce::Path clip; clip.addRoundedRectangle (r, 7.0f);
-    g.saveState();
-    g.reduceClipRegion (clip);
-    const float travel = bipolar ? value * 22.0f : (value - 0.5f) * 44.0f;
-    const float pitch = 5.0f;
-    float off = std::fmod (-travel, pitch); if (off < 0) off += pitch;
-    g.setColour (juce::Colour (0xff2a2a2d)); g.fillRect (r);
-    g.setColour (juce::Colour (0xff46464a));
-    for (float yy = r.getY() - pitch + off; yy < r.getBottom(); yy += pitch)
-        g.fillRect (r.getX(), yy, r.getWidth(), 2.0f);
-    const float centre = r.getCentreY() - (bipolar ? value * r.getHeight() * 0.38f : (value - 0.5f) * r.getHeight() * 0.76f);
-    g.setColour (DSynthLookAndFeel::amber.withAlpha (0.35f));
-    g.fillRect (r.getX() + 2, centre - 4.0f, r.getWidth() - 4, 8.0f);
+    if (bipolar && std::abs (value) < 0.01f) return;
+    const float y = bipolar ? r.getCentreY() - value * (r.getHeight() * 0.5f - 12.0f)
+                            : r.getBottom() - 12.0f - value * (r.getHeight() - 24.0f);
+    g.setColour (DSynthLookAndFeel::amber.withAlpha (0.3f));
+    g.fillRect (r.getX() + 2.0f, y - 3.5f, r.getWidth() - 4.0f, 7.0f);
     g.setColour (DSynthLookAndFeel::amber);
-    g.fillRect (r.getX() + 4, centre - 1.5f, r.getWidth() - 8, 3.0f);
-    // cylinder shading
-    juce::ColourGradient shade (juce::Colours::black.withAlpha (0.78f), 0, r.getY(), juce::Colours::black.withAlpha (0.78f), 0, r.getBottom(), false);
-    shade.addColour (0.32, juce::Colours::transparentBlack);
-    shade.addColour (0.68, juce::Colours::transparentBlack);
-    g.setGradientFill (shade);
-    g.fillRect (r);
-    g.restoreState();
-    g.setColour (juce::Colours::black);
-    g.drawRoundedRectangle (r, 7.0f, 1.0f);
+    g.fillRect (r.getX() + 4.0f, y - 1.5f, r.getWidth() - 8.0f, 3.0f);
 }
 
 //==============================================================================
@@ -347,98 +218,83 @@ void SoundScreen::setInfo (const Info& i)
 
 juce::Rectangle<float> SoundScreen::listArea() const
 {
-    return getLocalBounds().toFloat().withWidth ((float) getWidth() * 0.44f).reduced (0, 10);
+    const auto o = sk (skin::screen[0]).getPosition();
+    return sk (skin::row[0]).withBottom (sk (skin::row[7]).getBottom()).translated (-o.x, -o.y);
 }
 
 void SoundScreen::mouseDown (const juce::MouseEvent& e)
 {
     const auto la = listArea();
     if (! la.contains (e.position)) return;
-    const int row = (int) ((e.position.y - la.getY()) / 27.0f);
+    const int row = (int) ((e.position.y - la.getY()) / skin::row[0][3]);
     if (row >= 0 && row < (int) info.rows.size() && onPick) onPick (info.rows[(size_t) row].index);
 }
 
 void SoundScreen::paint (juce::Graphics& g)
 {
-    auto r = getLocalBounds().toFloat();
-    juce::Path shape; shape.addRoundedRectangle (r, 6.0f);
-    g.saveState();
-    g.reduceClipRegion (shape);
-
-    juce::ColourGradient bg (juce::Colour (0xff2c1b05), r.getWidth() * 0.55f, r.getHeight() * 0.45f,
-                             juce::Colour (0xff0d0801), r.getRight(), r.getBottom(), true);
-    bg.addColour (0.75, juce::Colour (0xff140c02));
-    g.setGradientFill (bg);
-    g.fillRect (r);
-
+    // background, separator, scanlines and glass are in the skin; here only the text
+    const auto o = sk (skin::screen[0]).getPosition();
+    auto at = [&] (const float r[4]) { return sk (r).translated (-o.x, -o.y); };
     const auto amber = DSynthLookAndFeel::amber;
-    // list
+    const auto rowCol = DSynthLookAndFeel::amberDeep;   // #9a6416
     const auto la = listArea();
+    const float rh = skin::row[0][3];
     float y = la.getY();
     for (auto& row : info.rows)
     {
-        auto rr = juce::Rectangle<float> (la.getX(), y, la.getWidth(), 27.0f);
+        auto rr = juce::Rectangle<float> (la.getX(), y, la.getWidth(), rh);
         const bool sel = row.index == info.current;
         const juce::String txt = juce::String (row.index + 1).paddedLeft ('0', 2) + "  " + row.name;
+        auto tr = rr.reduced (12, 0);
         if (sel)
         {
-            g.setColour (amber.withAlpha (0.35f));
-            g.fillRect (rr.expanded (0, 2));
-            g.setColour (amber);
-            g.fillRect (rr);
+            g.setColour (amber.withAlpha (0.22f)); g.fillRect (rr.expanded (0, 4));
+            g.setColour (amber.withAlpha (0.25f)); g.fillRect (rr.expanded (0, 2));
+            g.setColour (amber); g.fillRect (rr);
             g.setColour (juce::Colour (0xff1a1004));
-            g.setFont (lnf.screen (16.0f));
-            g.drawText (txt, rr.reduced (12, 0), juce::Justification::centredLeft);
-            if (row.fav) g.drawText (u8 ("\xe2\x98\x85"), rr.reduced (12, 0), juce::Justification::centredRight);
+            g.setFont (lnf.screen (15.0f));
+            g.drawText (txt, tr, juce::Justification::centredLeft);
+            if (row.fav) g.drawText (u8 ("\xe2\x98\x85"), tr, juce::Justification::centredRight);
         }
         else
         {
-            glowText (g, txt, rr.reduced (12, 0), lnf.screen (16.0f), DSynthLookAndFeel::amberDeep, juce::Justification::centredLeft, 0.12f);
-            if (row.fav) glowText (g, u8 ("\xe2\x98\x85"), rr.reduced (12, 0), lnf.screen (16.0f), DSynthLookAndFeel::amberDeep, juce::Justification::centredRight, 0.12f);
+            glowText (g, txt, tr, lnf.screen (15.0f), rowCol, juce::Justification::centredLeft, 0.18f);
+            if (row.fav) glowText (g, u8 ("\xe2\x98\x85"), tr, lnf.screen (15.0f), rowCol, juce::Justification::centredRight, 0.18f);
         }
-        y += 27.0f;
+        y += rh;
     }
     if (info.rows.empty())
-        glowText (g, u8 ("AUCUN FAVORI \xe2\x80\x94 APPUIE SUR \xe2\x98\x85"), la.withHeight (27).reduced (12, 0), lnf.screen (15.0f),
-                  DSynthLookAndFeel::amberDeep, juce::Justification::centredLeft, 0.12f);
+        glowText (g, u8 ("AUCUN FAVORI \xe2\x80\x94 APPUIE SUR \xe2\x98\x85"), la.withHeight (rh).reduced (12, 0), lnf.screen (15.0f),
+                  rowCol, juce::Justification::centredLeft, 0.18f);
 
-    // separator
-    g.setColour (amber.withAlpha (0.18f));
-    g.drawVerticalLine ((int) la.getRight(), 10.0f, r.getBottom() - 10.0f);
+    const auto dim = DSynthLookAndFeel::amberDim;   // #b07419
+    auto tag = at (skin::tag[0]);
+    g.setColour (dim.withAlpha (0.3f));
+    drawSpaced (g, lnf.screen (14.0f), info.category, tag.getX(), tag.getY() - 1.0f, 4.0f);
+    g.setColour (dim);
+    drawSpaced (g, lnf.screen (14.0f), info.category, tag.getX(), tag.getY(), 4.0f);
+    auto num = at (skin::num[0]);
+    const juce::String ns = juce::String (info.current + 1).paddedLeft ('0', 2) + " / " + juce::String (info.total);
+    g.setColour (dim);
+    drawSpaced (g, lnf.screen (14.0f), ns, num.getRight() - 200.0f, num.getY(), 2.0f, juce::Justification::right, 200.0f);
 
-    // current sound
-    auto d = r.withLeft (la.getRight()).reduced (22, 18);
-    auto top = d.removeFromTop (20);
-    glowText (g, info.category, top, lnf.screen (15.0f), DSynthLookAndFeel::amberDim, juce::Justification::left);
-    glowText (g, juce::String (info.current + 1).paddedLeft ('0', 2) + " / " + juce::String (info.total), top, lnf.screen (15.0f),
-              DSynthLookAndFeel::amberDim, juce::Justification::right);
-    auto bottom = d.removeFromBottom (20);
-    glowText (g, info.left, bottom, lnf.screen (14.0f), DSynthLookAndFeel::amberDim, juce::Justification::left);
-    glowText (g, info.right, bottom, lnf.screen (14.0f), DSynthLookAndFeel::amberDim, juce::Justification::right);
-
-    auto mid = d.withSizeKeepingCentre (d.getWidth(), 86.0f);
-    auto nameBox = mid.removeFromTop (54);
-    const float nameH = info.name.length() > 12 ? 38.0f : 46.0f;
-    g.setFont (lnf.screen (nameH));
-    g.setColour (amber.withAlpha (0.18f));
-    for (auto dd : { juce::Point<float> (-2, 0), { 2, 0 }, { 0, -2 }, { 0, 2 } })
-        g.drawText (info.name, nameBox.translated (dd.x, dd.y), juce::Justification::centredLeft, false);
+    // name: 46 px, letter-spacing 2, light amber with a double glow
+    auto nm = at (skin::name[0]);
+    const float nameH = info.name.length() > 13 ? 40.0f : 46.0f;
+    const auto nf = lnf.screen (nameH);
+    for (auto [d, a] : { std::pair<float, float> { 3.0f, 0.10f }, { 1.5f, 0.22f } })
+    {
+        g.setColour (amber.withAlpha (a));
+        for (auto dd : { juce::Point<float> (-d, 0), { d, 0 }, { 0, -d }, { 0, d } })
+            drawSpaced (g, nf, info.name, nm.getX() + dd.x, nm.getCentreY() - nf.getHeight() * 0.5f + dd.y, 2.0f);
+    }
     g.setColour (DSynthLookAndFeel::amberLight);
-    g.drawText (info.name, nameBox, juce::Justification::centredLeft, false);
-    glowText (g, info.description, mid, lnf.screen (15.0f), juce::Colour (0xffc58520), juce::Justification::centredLeft);
+    drawSpaced (g, nf, info.name, nm.getX(), nm.getCentreY() - nf.getHeight() * 0.5f, 2.0f);
 
-    // scanlines
-    g.setColour (juce::Colours::black.withAlpha (0.2f));
-    for (float yy = 0; yy < r.getBottom(); yy += 3.0f) g.drawHorizontalLine ((int) yy, 0.0f, r.getRight());
-    // glass: a diagonal reflection and a soft sheen at the top
-    juce::Path refl;
-    refl.startNewSubPath (0, 0); refl.lineTo (r.getWidth() * 0.42f, 0); refl.lineTo (r.getWidth() * 0.18f, r.getHeight()); refl.lineTo (0, r.getHeight());
-    refl.closeSubPath();
-    g.setGradientFill (juce::ColourGradient (juce::Colours::white.withAlpha (0.10f), 0, 0, juce::Colours::white.withAlpha (0.02f), r.getWidth() * 0.3f, r.getHeight(), false));
-    g.fillPath (refl);
-    g.setGradientFill (juce::ColourGradient (juce::Colours::white.withAlpha (0.05f), 0, 0, juce::Colours::white.withAlpha (0.0f), 0, r.getHeight() * 0.2f, false));
-    g.fillRect (r);
-    g.restoreState();
+    glowText (g, info.description, at (skin::desc[0]).withWidth (420.0f).expanded (0, 2), lnf.screen (15.0f), juce::Colour (0xffc58520), juce::Justification::centredLeft, 0.2f);
+    auto lb = at (skin::left[0]); auto rb = at (skin::right[0]);
+    glowText (g, info.left, lb.withWidth (240.0f).expanded (0, 2), lnf.screen (13.0f), dim, juce::Justification::centredLeft, 0.2f);
+    glowText (g, info.right, rb.withLeft (rb.getRight() - 300.0f).expanded (0, 2), lnf.screen (13.0f), dim, juce::Justification::centredRight, 0.2f);
 }
 
 //==============================================================================
@@ -479,33 +335,24 @@ void KeyBed::update()
     if (s2 != shown || shift != octaveShift) { shown = s2; octaveShift = shift; repaint(); }
 }
 
-juce::Rectangle<float> KeyBed::whiteRect (int wi) const
+juce::Rectangle<float> KeyBed::keyRect (int note) const
 {
-    const float w = (float) getWidth() / 21.0f;
-    return { (float) wi * w, 0.0f, w, (float) getHeight() };
-}
-
-juce::Rectangle<float> KeyBed::blackRect (int note) const
-{
-    const float w = (float) getWidth() / 21.0f;
-    static const int whiteBefore[12] = { 0, 1, 1, 2, 2, 3, 4, 4, 5, 5, 6, 6 };
-    const int oct = (note - kLow) / 12, k = (note - kLow) % 12;
-    const float x = ((float) (oct * 7 + whiteBefore[k])) * w - w * 0.3f;
-    return { x, 0.0f, w * 0.6f, (float) getHeight() * 0.62f };
+    const auto o = sk (skin::keys[0]).getPosition();
+    for (auto& k : skin::keyRects) if (k.note == note) return juce::Rectangle<float> (k.x, k.y, k.w, k.h).translated (-o.x, -o.y);
+    return {};
 }
 
 int KeyBed::noteAt (juce::Point<float> p) const
 {
-    for (int n = kLow; n <= kHigh; ++n) if (isBlack (n) && blackRect (n).contains (p)) return n;
-    static const int whiteNotes[7] = { 0, 2, 4, 5, 7, 9, 11 };
-    const int wi = juce::jlimit (0, 20, (int) (p.x / ((float) getWidth() / 21.0f)));
-    return kLow + (wi / 7) * 12 + whiteNotes[wi % 7];
+    for (int n = kLow; n <= kHigh; ++n) if (isBlack (n) && keyRect (n).contains (p)) return n;
+    for (int n = kLow; n <= kHigh; ++n) if (! isBlack (n) && keyRect (n).expanded (0.6f, 0).contains (p)) return n;
+    return -1;
 }
 
 void KeyBed::mouseDown (const juce::MouseEvent& e)
 {
     mouseNote = noteAt (e.position);
-    proc.getKeyboardState().noteOn (1, mouseNote, 0.8f);
+    if (mouseNote >= 0) proc.getKeyboardState().noteOn (1, mouseNote, 0.8f);
 }
 
 void KeyBed::mouseDrag (const juce::MouseEvent& e)
@@ -515,7 +362,7 @@ void KeyBed::mouseDrag (const juce::MouseEvent& e)
     {
         if (mouseNote >= 0) proc.getKeyboardState().noteOff (1, mouseNote, 0.0f);
         mouseNote = n;
-        proc.getKeyboardState().noteOn (1, mouseNote, 0.8f);
+        if (mouseNote >= 0) proc.getKeyboardState().noteOn (1, mouseNote, 0.8f);
     }
 }
 
@@ -527,64 +374,26 @@ void KeyBed::mouseUp (const juce::MouseEvent&)
 
 void KeyBed::paint (juce::Graphics& g)
 {
-    static const int whiteNotes[7] = { 0, 2, 4, 5, 7, 9, 11 };
-    for (int wi = 0; wi < 21; ++wi)
-    {
-        const int note = kLow + (wi / 7) * 12 + whiteNotes[wi % 7];
-        auto k = whiteRect (wi).reduced (0.5f, 0).withTrimmedRight (1.0f);
-        const uint8_t s = shown[(size_t) note];
-        if (s == 1) k = k.withTrimmedTop (-0.0f).translated (0, 1.5f);
-        juce::Path p; p.addRoundedRectangle (k.getX(), k.getY(), k.getWidth(), k.getHeight(), 7.0f, 7.0f, false, false, true, true);
-        g.setColour (juce::Colours::black.withAlpha (0.6f));
-        g.fillPath (p, juce::AffineTransform::translation (0, 3.0f));
-        juce::ColourGradient body (juce::Colours::white, 0, k.getY(), juce::Colour (0xffdcd7cc), 0, k.getBottom(), false);
-        body.addColour (0.7, juce::Colour (0xfff1eee6));
-        g.setGradientFill (body);
-        g.fillPath (p);
-        if (s > 0)
+    // the white and black keys are in the skin; played notes light up in their colour
+    for (int pass = 0; pass < 2; ++pass)
+        for (int n = kLow; n <= kHigh; ++n)
         {
-            const auto z = zoneColour (note);
-            g.setColour (z.withAlpha (s == 1 ? 0.55f : 0.25f));
+            if (isBlack (n) != (pass == 1)) continue;
+            const uint8_t s = shown[(size_t) n];
+            if (s == 0) continue;
+            const auto k = keyRect (n);
+            const bool blk = pass == 1;
+            juce::Path p; p.addRoundedRectangle (k.getX(), k.getY(), k.getWidth(), k.getHeight(), blk ? 5.0f : 7.0f, blk ? 5.0f : 7.0f, false, false, true, true);
+            const auto z = zoneColour (n);
+            g.saveState();
+            if (! blk)   // the colour of a white key stays behind its black neighbours
+                for (int b = n - 1; b <= n + 1; b += 2)
+                    if (b >= kLow && b <= kHigh && isBlack (b)) g.excludeClipRegion (keyRect (b).expanded (1.0f, 0.0f).withTrimmedBottom (-3.0f).toNearestInt());
+            g.setColour (z.withAlpha (blk ? (s == 1 ? 0.7f : 0.35f) : (s == 1 ? 0.55f : 0.25f)));
             g.fillPath (p);
-            g.setColour (z.withAlpha (s == 1 ? 0.9f : 0.45f));
-            g.fillRect (k.withHeight (6.0f));
+            if (! blk) { g.setColour (z.withAlpha (s == 1 ? 0.9f : 0.45f)); g.fillRect (k.withHeight (6.0f)); }
+            g.restoreState();
         }
-        // front lip and top shading
-        g.setColour (juce::Colour (0xffcdc7bb));
-        g.fillRect (k.withTop (k.getBottom() - 8.0f).reduced (1.0f, 0));
-        g.setGradientFill (juce::ColourGradient (juce::Colours::black.withAlpha (0.25f), 0, k.getY(), juce::Colours::transparentBlack, 0, k.getY() + 10.0f, false));
-        g.fillRect (k.withHeight (10.0f));
-        if (note % 12 == 0)
-        {
-            g.setColour (juce::Colour (0xff9b968c));
-            g.setFont (lnf.label (13.0f));
-            g.drawText ("C" + juce::String (note / 12 - 1), k.withTrimmedBottom (14).removeFromBottom (16), juce::Justification::centred);
-        }
-    }
-    for (int n = kLow; n <= kHigh; ++n)
-    {
-        if (! isBlack (n)) continue;
-        auto k = blackRect (n);
-        const uint8_t s = shown[(size_t) n];
-        juce::Path p; p.addRoundedRectangle (k.getX(), k.getY(), k.getWidth(), k.getHeight(), 5.0f, 5.0f, false, false, true, true);
-        g.setColour (juce::Colours::black.withAlpha (0.7f));
-        g.fillPath (p, juce::AffineTransform::translation (0, 4.0f));
-        juce::ColourGradient body (juce::Colour (0xff0b0b0c), k.getX(), 0, juce::Colour (0xff0b0b0c), k.getRight(), 0, false);
-        body.addColour (0.45, juce::Colour (0xff2c2c2f));
-        g.setGradientFill (body);
-        g.fillPath (p);
-        g.setColour (juce::Colours::black);
-        g.fillRect (k.withTop (k.getBottom() - 7.0f).reduced (1, 0));
-        if (s > 0)
-        {
-            g.setColour (zoneColour (n).withAlpha (s == 1 ? 0.7f : 0.35f));
-            g.fillPath (p);
-        }
-        // glossy streak
-        auto gl = k.reduced (k.getWidth() * 0.25f, 4.0f).withHeight (k.getHeight() * 0.6f);
-        g.setGradientFill (juce::ColourGradient (juce::Colours::white.withAlpha (0.22f), 0, gl.getY(), juce::Colours::white.withAlpha (0.02f), 0, gl.getBottom(), false));
-        g.fillRoundedRectangle (gl, 3.0f);
-    }
     if (octaveShift != 0)
     {
         // where you really play: e.g. "OCT +1" when the chord was shown one octave lower
@@ -603,7 +412,8 @@ SynthPanel::SynthPanel (DSynthProcessor& p, DSynthLookAndFeel& l)
       prevBtn (l, "prev", HardButton::Icon::Prev), starBtn (l, "fav", HardButton::Icon::Star), nextBtn (l, "next", HardButton::Icon::Next),
       screen (l), keys (p, l)
 {
-    wood = juce::ImageCache::getFromMemory (BinaryData::walnut_jpg, BinaryData::walnut_jpgSize);
+    skinBg    = skinImage (BinaryData::skin_bg_png, BinaryData::skin_bg_pngSize);
+    skinOn    = skinImage (BinaryData::skin_on_png, BinaryData::skin_on_pngSize);
     setLookAndFeel (&lnf);
     favs = Favourites::load();
 
@@ -760,7 +570,7 @@ void SynthPanel::refresh()
     info.current = prog;
     info.total = (int) all.size();
     info.name = pr.name;
-    info.description = upperFr (u8 (pr.description));
+    info.description = u8 (pr.description);
     info.category = u8 (pr.category);
     info.fav = favs.contains (pr.name);
     info.left = "BUILD " + juce::String (juce::roundToInt (val ("build") * 100.0f)) + "%";
@@ -785,6 +595,7 @@ void SynthPanel::refresh()
         info.right = val ("poly") > 0.5f ? "POLY 16" : "MONO";
     screen.setInfo (info);
 
+    if (proc.uiCategory != shownCategory) { shownCategory = proc.uiCategory; repaint (juce::Rectangle<int> (150, 70, 1120, 80)); }
     for (int i = 0; i < catButtons.size(); ++i)
         catButtons[i]->setLit (proc.uiCategory == kCats[i]);
     starBtn.setLit (info.fav);
@@ -793,142 +604,61 @@ void SynthPanel::refresh()
     const juce::String hr = u8 ("SYNC \xe2\x99\xa9 ") + juce::String (juce::roundToInt (proc.tempo())) + " BPM";
     juce::StringArray vals;
     for (auto& k : knobs) vals.add (valueText (st.getParameter (k.id)));
-    if (hr != headerRight) { headerRight = hr; repaint (juce::Rectangle<int> (980, 18, 200, 50)); }
-    if (vals != knobVals) { knobVals = vals; repaint (juce::Rectangle<int> (60, 505, 1200, 60)); }
+    if (hr != headerRight) { headerRight = hr; repaint (sk (skin::bpmlcd[0]).expanded (4).toNearestInt()); }
+    if (vals != knobVals) { knobVals = vals; repaint (juce::Rectangle<int> (60, (int) skin::klab[0][1] - 4, 1200, 50)); }
 }
 
 void SynthPanel::resized()
 {
     for (size_t i = 0; i < knobs.size(); ++i)
-        knobs[i].slider.setBounds (juce::Rectangle<int> (82, 82).withCentre (knobCentre ((int) i).toInt()));
-    build.setBounds (kBuild.toNearestInt());
-
-    const float bw = 108.0f, gap = 10.0f;
+        knobs[i].slider.setBounds (sk (skin::knob[i]).toNearestInt());
+    build.setBounds (sk (skin::build[0]).toNearestInt());
     for (int i = 0; i < catButtons.size(); ++i)
-        catButtons[i]->setBounds (juce::Rectangle<float> (194.0f + (float) i * (bw + gap), 82.0f, bw, 57.0f).toNearestInt());
-    prevBtn.setBounds (897, 162, 62, 54);
-    starBtn.setBounds (897, 258, 62, 54);
-    nextBtn.setBounds (897, 354, 62, 54);
-
-    screen.setBounds (kBezel.reduced (11).toNearestInt());
-    pitchWheel.setBounds (90, 590, 42, 168);
-    modWheel.setBounds (148, 590, 42, 168);
-    keys.setBounds (kKeyBox.reduced (6).withTrimmedTop (8).toNearestInt());
+        catButtons[i]->setBounds (sk (skin::cat[i]).toNearestInt());
+    prevBtn.setBounds (sk (skin::nav[0]).toNearestInt());
+    starBtn.setBounds (sk (skin::nav[1]).toNearestInt());
+    nextBtn.setBounds (sk (skin::nav[2]).toNearestInt());
+    screen.setBounds (sk (skin::screen[0]).toNearestInt());
+    pitchWheel.setBounds (sk (skin::wheel[0]).toNearestInt());
+    modWheel.setBounds (sk (skin::wheel[1]).toNearestInt());
+    keys.setBounds (sk (skin::keys[0]).toNearestInt());
 }
 
-void SynthPanel::drawScrew (juce::Graphics& g, float cx, float cy, float r)
-{
-    juce::Rectangle<float> b (cx - r, cy - r, r * 2, r * 2);
-    g.setColour (juce::Colours::black.withAlpha (0.8f));
-    g.fillEllipse (b.translated (0, 1));
-    g.setGradientFill (juce::ColourGradient (juce::Colour (0xffd9d6cf), cx - r * 0.3f, cy - r * 0.4f, juce::Colour (0xff3d3b38), cx + r, cy + r, true));
-    g.fillEllipse (b);
-    g.setColour (juce::Colour (0xff2a2826));
-    g.drawLine (juce::Line<float> (juce::Point<float> (cx, cy).getPointOnCircumference (r * 0.7f, 2.2f),
-                                   juce::Point<float> (cx, cy).getPointOnCircumference (r * 0.7f, 2.2f + juce::MathConstants<float>::pi)), 2.0f);
-}
-
+// The face is the approved mockup itself (rendered by tools/skin/make_skin.py); the panel only adds what changes
 void SynthPanel::paint (juce::Graphics& g)
 {
-    const auto all = getLocalBounds().toFloat();
-    juce::Path outer; outer.addRoundedRectangle (all, 16.0f);
-    g.saveState();
-    g.reduceClipRegion (outer);
+    const juce::Rectangle<float> all (0, 0, (float) W, (float) H);
+    if (skinBg.isValid()) g.drawImage (skinBg, all, juce::RectanglePlacement::stretchToFit);
+    else g.fillAll (juce::Colour (0xff131315));
 
-    // walnut cheeks
-    for (auto cheek : { juce::Rectangle<float> (0, 0, 46, (float) H), juce::Rectangle<float> ((float) W - 46, 0, 46, (float) H) })
-    {
-        if (wood.isValid()) g.drawImage (wood, cheek, juce::RectanglePlacement::fillDestination);
-        else { g.setColour (juce::Colour (0xff5a361f)); g.fillRect (cheek); }
-        juce::ColourGradient sh (juce::Colours::black.withAlpha (0.55f), cheek.getX(), 0, juce::Colours::black.withAlpha (0.5f), cheek.getRight(), 0, false);
-        sh.addColour (0.3, juce::Colours::transparentBlack);
-        sh.addColour (0.6, juce::Colour (0x12ffdcb4));
-        g.setGradientFill (sh); g.fillRect (cheek);
-        drawScrew (g, cheek.getCentreX(), 26, 7);
-        drawScrew (g, cheek.getCentreX(), (float) H - 26, 7);
-    }
-
-    // brushed black panel
-    juce::ColourGradient face (juce::Colour (0xff1e1e21), 0, 0, juce::Colour (0xff0e0e10), 0, (float) H, false);
-    face.addColour (0.38, juce::Colour (0xff131315));
-    g.setGradientFill (face);
-    g.fillRect (kPanel);
-    g.setColour (juce::Colours::white.withAlpha (0.012f));
-    for (float x = kPanel.getX(); x < kPanel.getRight(); x += 3.0f) g.drawVerticalLine ((int) x, 0.0f, (float) H);
-    g.setColour (juce::Colours::black.withAlpha (0.6f));
-    g.drawVerticalLine ((int) kPanel.getX(), 0.0f, (float) H);
-    g.drawVerticalLine ((int) kPanel.getRight() - 1, 0.0f, (float) H);
-    drawScrew (g, kPanel.getX() + 14, 14, 5);
-    drawScrew (g, kPanel.getRight() - 14, 14, 5);
-    g.restoreState();
-
-    // header: logo + credits
-    g.setColour (juce::Colours::black);
-    drawSpaced (g, lnf.logo (32.0f), "D-SYNTH", 74, 24, 9.0f);
-    g.setColour (DSynthLookAndFeel::ink);
-    drawSpaced (g, lnf.logo (32.0f), "D-SYNTH", 74, 22, 9.0f);
-    g.setColour (juce::Colour (0xff8d877c));
-    drawSpaced (g, lnf.label (14.0f), u8 ("CR\xc3\x89\xc3\x89 ET D\xc3\x89VELOPP\xc3\x89 PAR STUDIO DANOVA & DANIEL MALABA"), 360, 36, 3.0f);
-
-    // header right: tempo readout + version plate
-    {
-        const juce::Rectangle<float> rd (992, 26, 178, 32);
-        g.setColour (juce::Colour (0xff050505)); g.fillRoundedRectangle (rd.expanded (2), 6.0f);
-        g.setGradientFill (juce::ColourGradient (juce::Colour (0xff2c1b05), rd.getCentreX(), rd.getCentreY(), juce::Colour (0xff0d0801), rd.getRight(), rd.getBottom(), true));
-        g.fillRoundedRectangle (rd, 5.0f);
-        glowText (g, headerRight, rd, lnf.screen (15.0f),
-                  DSynthLookAndFeel::amber, juce::Justification::centred);
-        const juce::Rectangle<float> plate (1182, 28, 60, 28);
-        g.setGradientFill (juce::ColourGradient (juce::Colour (0xffd9d4c8), 0, plate.getY(), juce::Colour (0xffa9a398), 0, plate.getBottom(), false));
-        g.fillRoundedRectangle (plate, 4.0f);
-        g.setColour (juce::Colours::white.withAlpha (0.6f)); g.drawHorizontalLine ((int) plate.getY() + 1, plate.getX() + 3, plate.getRight() - 3);
-        g.setColour (juce::Colour (0xff1a1a1c));
-        g.setFont (lnf.logo (12.0f));
-        g.drawText ("V2.0", plate, juce::Justification::centred);
-    }
-
-    // category label
-    g.setColour (DSynthLookAndFeel::textDim);
-    drawSpaced (g, lnf.label (15.0f), u8 ("CAT\xc3\x89GORIE"), 74, 110, 3.0f);
-
-    // screen bezel (recessed)
-    g.setColour (juce::Colours::white.withAlpha (0.07f));
-    g.drawRoundedRectangle (kBezel.expanded (1).translated (0, 1), 12.0f, 1.0f);
-    g.setGradientFill (juce::ColourGradient (juce::Colour (0xff050505), 0, kBezel.getY(), juce::Colour (0xff121213), 0, kBezel.getBottom(), false));
-    g.fillRoundedRectangle (kBezel, 12.0f);
-    juce::DropShadow (juce::Colours::black, 10, { 0, 3 }).drawForRectangle (g, kBezel.reduced (11).toNearestInt());
-
-    // BUILD label
-    g.setColour (DSynthLookAndFeel::ink);
-    drawSpaced (g, lnf.logo (18.0f), "BUILD", kBuild.getX(), kBuild.getBottom() + 14, 7.0f, juce::Justification::horizontallyCentred, kBuild.getWidth());
-
-    // knob labels + values
-    {
-        for (size_t i = 0; i < knobs.size(); ++i)
+    // selected category: pressed button + lit LED, copied from the "pressed" skin
+    const float sx = skinOn.isValid() ? (float) skinOn.getWidth() / (float) W : 1.0f;
+    for (int i = 0; i < catButtons.size(); ++i)
+        if (proc.uiCategory == kCats[i] && skinOn.isValid())
         {
-            const auto c = knobCentre ((int) i);
-            g.setColour (DSynthLookAndFeel::textSoft);
-            drawSpaced (g, lnf.label (15.0f), knobs[i].text, c.x - 80, c.y + 44, 3.0f, juce::Justification::horizontallyCentred, 160);
-            const juce::String v = knobVals[(int) i];
-            glowText (g, v, { c.x - 80, c.y + 64, 160, 18 }, lnf.screen (14.0f), DSynthLookAndFeel::amber, juce::Justification::centred, 0.25f);
+            const auto r = sk (skin::cat[i]).expanded (8.0f, 0.0f).withTrimmedTop (-4.0f).withBottom (skin::cat[i][1] + skin::cat[i][3] + 12.0f);
+            g.drawImage (skinOn, (int) r.getX(), (int) r.getY(), (int) r.getWidth(), (int) r.getHeight(),
+                         (int) (r.getX() * sx), (int) (r.getY() * sx), (int) (r.getWidth() * sx), (int) (r.getHeight() * sx));
         }
+
+    // tempo readout
+    glowText (g, headerRight, sk (skin::bpmlcd[0]), lnf.screen (14.0f), DSynthLookAndFeel::amber, juce::Justification::centred, 0.25f);
+
+    // knob names and values
+    for (size_t i = 0; i < knobs.size(); ++i)
+    {
+        const auto lab = sk (skin::klab[i]), val = sk (skin::kval[i]);
+        const float cx = lab.getCentreX();
+        g.setColour (DSynthLookAndFeel::textSoft);
+        drawSpaced (g, lnf.label (14.0f), knobs[i].text, cx - 100.0f, lab.getY() + 1.0f, 3.0f, juce::Justification::horizontallyCentred, 200.0f);
+        glowText (g, knobVals[(int) i], juce::Rectangle<float> (cx - 100.0f, val.getY() - 1.0f, 200.0f, val.getHeight() + 2.0f), lnf.screen (13.0f),
+                  DSynthLookAndFeel::amber, juce::Justification::centred, 0.25f);
     }
+}
 
-    // wheel housing
-    g.setColour (juce::Colour (0xff0a0a0b));
-    g.fillRoundedRectangle (kWheels, 10.0f);
-    g.setColour (juce::Colours::white.withAlpha (0.07f));
-    g.drawRoundedRectangle (kWheels.expanded (1).translated (0, 1), 10.0f, 1.0f);
-    g.setColour (DSynthLookAndFeel::textSoft);
-    drawSpaced (g, lnf.label (13.0f), "PITCH", 90, 766, 2.0f, juce::Justification::horizontallyCentred, 42);
-    drawSpaced (g, lnf.label (13.0f), "MOD", 148, 766, 2.0f, juce::Justification::horizontallyCentred, 42);
-
-    // key bed with the red felt strip
-    g.setColour (juce::Colour (0xff070707));
-    g.fillRoundedRectangle (kKeyBox, 6.0f);
-    const auto felt = kKeyBox.reduced (6, 0).withHeight (10).translated (0, 2);
-    g.setGradientFill (juce::ColourGradient (juce::Colour (0xff5c1116), 0, felt.getY(), juce::Colour (0xff3a0a0e), 0, felt.getBottom(), false));
-    g.fillRect (felt);
+void SynthPanel::paintOverChildren (juce::Graphics& g)
+{
+    juce::ignoreUnused (g);   // (the screen glass is under the text in the mockup: it is part of the background)
 }
 
 //==============================================================================

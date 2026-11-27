@@ -39,7 +39,9 @@ juce_add_binary_data(DSynthAssets SOURCES
     Assets/Michroma-Regular.ttf
     Assets/BarlowCondensed-SemiBold.ttf
     Assets/BarlowCondensed-Bold.ttf
-    Assets/ShareTechMono-Regular.ttf)
+    Assets/ShareTechMono-Regular.ttf
+    Assets/skin_bg.png
+    Assets/skin_on.png)
 
 target_sources(DSynth PRIVATE
     Source/PluginProcessor.cpp

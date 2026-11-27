@@ -116,8 +116,7 @@ public:
 
 private:
     int noteAt (juce::Point<float>) const;
-    juce::Rectangle<float> whiteRect (int whiteIndex) const;
-    juce::Rectangle<float> blackRect (int note) const;
+    juce::Rectangle<float> keyRect (int note) const;
     static bool isBlack (int n) { const int k = n % 12; return k == 1 || k == 3 || k == 6 || k == 8 || k == 10; }
 
     DSynthProcessor& proc;
@@ -135,6 +134,7 @@ public:
     SynthPanel (DSynthProcessor&, DSynthLookAndFeel&);
     ~SynthPanel() override;
     void paint (juce::Graphics&) override;
+    void paintOverChildren (juce::Graphics&) override;
     void resized() override;
     void refresh();   // called by the editor's timer
 
@@ -146,11 +146,11 @@ private:
     void selectCategory (const juce::String&);
     void toggleFavourite();
     void bindKnobs();
-    void drawScrew (juce::Graphics&, float cx, float cy, float r = 7.0f);
 
     DSynthProcessor& proc;
     DSynthLookAndFeel& lnf;
-    juce::Image wood;
+    juce::Image skinBg, skinOn;
+    juce::String shownCategory;
 
     struct Knob
     {
