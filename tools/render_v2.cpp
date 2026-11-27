@@ -197,6 +197,28 @@ int main (int argc, char** argv)
     const double sr = 44100.0;
     static SampleBank bank;
     std::printf ("samples: %s\n", bank.load (argv[1]) ? "ok" : "missing");
+    if (argc > 5 && std::strcmp (argv[3], "--file") == 0)
+    {
+        // render a note list (BPM line, then "start_beats length_beats note velocity") with one sound
+        Song s; FILE* f = std::fopen (argv[4], "r"); if (! f) return 1;
+        char line[256]; double maxEnd = 0;
+        while (std::fgets (line, sizeof line, f))
+        {
+            double a, b; int n; float v;
+            if (std::sscanf (line, "BPM %lf", &a) == 1) { s.bpm = a; continue; }
+            if (std::sscanf (line, "%lf %lf %d %f", &a, &b, &n, &v) == 4) { s.note (a, b, n, v); maxEnd = std::max (maxEnd, a + b); }
+            else if (std::sscanf (line, "MOD %lf %lf %f", &a, &b, &v) == 3) s.mod (a, b, 0.0f, v);
+        }
+        std::fclose (f);
+        s.beats = maxEnd + 6.0;
+        for (const auto& p : factoryPresets())
+            if (std::string (p.name) == argv[5])
+            {
+                std::vector<float> L, R; render (p.values(), s, &bank, L, R, sr);
+                writeWav (argv[2], L, R, (int) sr); std::printf ("wrote %s\n", argv[2]);
+            }
+        return 0;
+    }
     const bool cal = argc > 3 && std::strcmp (argv[3], "--calibrate") == 0;
     const std::string only = argc > 4 ? argv[4] : (argc > 3 && ! cal ? argv[3] : "");
     int idx = 0;
