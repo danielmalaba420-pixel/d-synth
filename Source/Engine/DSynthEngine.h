@@ -683,7 +683,7 @@ public:
 
         // ---- v2 layers and modules
         const bool fxMode = engineMode == 3;
-        const float smpLevel = (p[pSmpSet] > 0.5f && samplesReady()) ? p[pSmpLevel] : 0.0f;
+        const float smpLevel = (p[pSmpSet] > 0.5f && samplesReady()) ? p[pSmpLevel] * (std::lround (p[pSmpSet]) == 7 ? 1.0f + 0.7f * mod : 1.0f) : 0.0f;   // The Prayer: the wheel swells the pad
         const bool organSmp = smpLevel > 0.0f && std::lround (p[pSmpSet]) == 4;
         const float orgLevel = p[pOrgLevel];
         const float padGain = clampf (padLevel + mod * p[pMwPad], 0.0f, 1.5f);
