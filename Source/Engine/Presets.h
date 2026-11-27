@@ -102,31 +102,31 @@ inline const std::vector<Preset>& factoryPresets()
             { pRevSize, 0.9f }, { pRevDamp, 0.55f }, { pRevMix, 0.2f }, { pWidth, 1.1f }, { pComp, 0.35f }, { pOutput, -11.4f } } },
 
         // 07
-        { "ARP PULSE", "Arpège doux · doubles croches · ping-pong", "ARP", {
-            { pArp, 1 }, { pArpRate, 2 }, { pArpMode, 2 }, { pArpOct, 2 }, { pArpGate, 0.5f },
+        { "ARP PULSE", "Arpège rapide qui monte et descend · nappe", "ARP", {
+            { pArp, 1 }, { pArpRate, 2 }, { pArpMode, 2 }, { pArpOct, 1 }, { pArpGate, 0.45f }, { pArpPad, 0.3f }, { pArpPan, 0.8f }, { pChorus, 0.25f },
             { pOscAWave, 0 }, { pOscBWave, 1 }, { pOscBLevel, 0.3f }, { pOscBSemi, 12 }, { pUnison, 3 }, { pDetune, 8 }, { pSpread, 0.6f },
             { pPoly, 1 }, { pGlide, 0 },
             { pAmpA, 1 }, { pAmpD, 220 }, { pAmpS, 0.0f }, { pAmpR, 180 }, { pVelSens, 0.4f },
             { pCutoff, 1100 }, { pReso, 0.22f }, { pKeyTrack, 0.8f }, { pFiltEnv, 2.8f }, { pFiltD, 160 }, { pFiltS, 0.0f }, { pVelCutoff, 0.8f },
             { pDrive, 0.1f }, { pVelDrive, 0.1f }, { pMwFilter, 0.6f }, { pMwVibrato, 0.0f }, { pVibDepth, 0.0f },
-            { pDlyTime, 3 }, { pDlyFb, 0.35f }, { pDlyMix, 0.35f }, { pDlyPingPong, 1 }, { pDlyDuck, 0.3f },
-            { pRevSize, 0.8f }, { pRevMix, 0.2f }, { pWidth, 1.2f }, { pComp, 0.4f }, { pOutput, 5.0f } } },
+            { pDlyTime, 2 }, { pDlyFb, 0.3f }, { pDlyMix, 0.22f }, { pDlyPingPong, 1 }, { pDlyDuck, 0.3f },
+            { pRevSize, 0.8f }, { pRevMix, 0.2f }, { pWidth, 1.2f }, { pComp, 0.4f }, { pOutput, -0.9f } } },
 
         // 08
         { "ARP CRYSTAL", "Glockenspiel en arpège · nappe derrière", "ARP", {
-            { pArp, 1 }, { pArpRate, 0 }, { pArpMode, 4 }, { pArpOct, 2 }, { pArpGate, 0.5f },
+            { pArp, 1 }, { pArpRate, 2 }, { pArpMode, 2 }, { pArpOct, 1 }, { pArpGate, 0.45f }, { pArpPan, 0.8f },
             { pSmpSet, 5 }, { pSmpLevel, 1.0f }, { pPadLevel, 0.0f }, { pArpPad, 0.32f },
             { pOscAWave, 0 }, { pUnison, 5 }, { pDetune, 10 }, { pSpread, 0.9f }, { pOscBWave, 3 }, { pOscBLevel, 0.5f }, { pOscBSemi, -12 }, { pSubLevel, 0.0f },
             { pCutoff, 750 }, { pReso, 0.0f }, { pKeyTrack, 0.3f }, { pFiltEnv, 0.0f }, { pVelCutoff, 0.0f }, { pDrive, 0.0f }, { pVelDrive, 0.0f }, { pChorus, 0.3f },
             { pPoly, 1 }, { pGlide, 0 },
             { pAmpA, 0.5f }, { pAmpD, 400 }, { pAmpS, 1.0f }, { pAmpR, 1500 }, { pVelSens, 0.5f },
             { pVibDepth, 0.0f }, { pMwVibrato, 0.0f }, { pMwBuild, 0.0f }, { pMwFilter, 0.0f },
-            { pDlyTime, 3 }, { pDlyFb, 0.38f }, { pDlyMix, 0.42f }, { pDlyPingPong, 1 }, { pDlyHP, 600 }, { pDlyDuck, 0.15f },
-            { pRevHall, 1 }, { pRevSize, 0.8f }, { pRevDamp, 0.45f }, { pRevMix, 0.3f }, { pWidth, 1.2f }, { pComp, 0.3f }, { pOutput, -11.0f } } },
+            { pDlyTime, 2 }, { pDlyFb, 0.3f }, { pDlyMix, 0.25f }, { pDlyPingPong, 1 }, { pDlyHP, 600 }, { pDlyDuck, 0.15f },
+            { pRevHall, 1 }, { pRevSize, 0.8f }, { pRevDamp, 0.45f }, { pRevMix, 0.3f }, { pWidth, 1.2f }, { pComp, 0.3f }, { pOutput, -7.7f } } },
 
         // 09
-        { "ARP DRIVE", "Accord répété · saw lourd · avec BUILD", "ARP", {
-            { pArp, 1 }, { pArpRate, 2 }, { pArpMode, 3 }, { pArpGate, 0.55f },
+        { "ARP DRIVE", "Arpège rapide · saw lourd · monte avec BUILD", "ARP", {
+            { pArp, 1 }, { pArpRate, 3 }, { pArpMode, 2 }, { pArpOct, 1 }, { pArpGate, 0.5f }, { pArpPad, 0.3f }, { pArpPan, 0.8f },
             { pOscAWave, 0 }, { pUnison, 7 }, { pDetune, 18 }, { pSpread, 0.9f },
             { pOscBWave, 1 }, { pOscBLevel, 0.4f }, { pOscBSemi, -12 }, { pSubLevel, 0.4f },
             { pPoly, 1 }, { pGlide, 0 },
@@ -134,7 +134,7 @@ inline const std::vector<Preset>& factoryPresets()
             { pCutoff, 1400 }, { pReso, 0.2f }, { pKeyTrack, 0.6f }, { pFiltEnv, 1.8f }, { pFiltD, 140 }, { pFiltS, 0.3f },
             { pDrive, 0.45f }, { pVelDrive, 0.3f }, { pMwBuild, 1.0f }, { pMwVibrato, 0.0f }, { pVibDepth, 0.0f },
             { pDlyTime, 2 }, { pDlyFb, 0.25f }, { pDlyMix, 0.15f }, { pDlyDuck, 0.5f },
-            { pRevMix, 0.15f }, { pWidth, 1.2f }, { pComp, 0.55f }, { pOutput, -6.6f } } },
+            { pRevMix, 0.15f }, { pWidth, 1.2f }, { pComp, 0.55f }, { pOutput, -0.8f } } },
 
         // 10
         { "STRING GLIDE", "Cordes + pad dark lourd · glide d'accords", "NAPPE", {

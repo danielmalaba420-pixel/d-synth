@@ -223,6 +223,7 @@ struct Voice
     uint8_t mask = 3;
     double glideMid = 60.0;  // first stage of the S-shaped (string-like) glide
     float padFade = 1.0f;
+    float arpPan = 0.0f;     // arpeggio notes travel from left (low) to right (high)
     OnePole smpTiltL, smpTiltR;
     // FX kit
     int fxType = -1;
@@ -713,7 +714,7 @@ public:
                     sumL += fl; sumR += fr;
                     continue;
                 }
-                if (padIdle && ! bassMode && (! keysMode || v.epEnv < 1.0e-4f)) { v.active = false; continue; }
+                if (padIdle && v.mask != 1 && ! bassMode && (! keysMode || v.epEnv < 1.0e-4f)) { v.active = false; continue; }
 
                 const double baseHz = 440.0 * std::pow (2.0, (pitch - 69.0) / 12.0);
                 const float velGain = 1.0f - p[pVelSens] + p[pVelSens] * v.velocity;
@@ -800,9 +801,28 @@ public:
 
                 if (padIdle) continue;
 
-                const float voicePad = v.mask == 1 ? p[pArpPad] : padGain;
-                if (v.mask == 1) v.padFade = std::min (1.0f, v.padFade + dt / 0.6f);
-                if (voicePad > 0.0001f && (v.mask & 1))
+                if (v.mask == 1)
+                {
+                    // the pad behind the arpeggio: three detuned saws + a soft sub, dark and wide, fades in and out
+                    if (v.keyDown || v.sustained) v.padFade = std::min (1.0f, v.padFade + dt / 0.7f);
+                    else { v.padFade -= dt / 1.1f; if (v.padFade <= 0.0f) { v.padFade = 0.0f; v.active = false; continue; } }
+                    const double hz = 440.0 * std::pow (2.0, (v.pitch + pbSemis - 69.0) / 12.0);
+                    const float a = v.uni[0].tick (0, std::min (0.49, hz * 1.0046 / sr));
+                    const float c = v.uni[1].tick (0, std::min (0.49, hz * 0.9954 / sr));
+                    const float m = v.uni[2].tick (0, std::min (0.49, hz / sr));
+                    const float sub = v.sub.tick (3, hz * 0.5 / sr);
+                    const float fc = clampf (650.0f * std::pow (2.0f, (float) (v.note - 60) / 12.0f * 0.3f), 200.0f, 2500.0f);
+                    const float g = std::tan ((float) kPi * fc / sr);
+                    const float a1 = 1.0f / (1.0f + g * (g + 1.4f)), a2 = g * a1, a3 = g * a2;
+                    const float pl = v.fL2.process (v.fL1.process (a * 0.7f + m * 0.5f + sub * 0.5f, a1, a2, a3), a1, a2, a3);
+                    const float pr = v.fR2.process (v.fR1.process (c * 0.7f + m * 0.5f + sub * 0.5f, a1, a2, a3), a1, a2, a3);
+                    const float lvl = p[pArpPad] * v.padFade * v.padFade * 0.8f;
+                    sumL += pl * lvl; sumR += pr * lvl;
+                    continue;
+                }
+                const float voicePad = padGain;
+                const float balL = std::min (1.0f, 1.0f - v.arpPan), balR = std::min (1.0f, 1.0f + v.arpPan);
+                if (voicePad > 0.0001f)
                 {
                     // oscillators
                     float vl = 0.0f, vr = 0.0f;
@@ -873,8 +893,8 @@ public:
                         vl += sh * mv; vr += sh * (1.55f - mv);
                     }
 
-                    const float gl = vl * aenv * velGain * voicePad * riserGain * (v.mask == 1 ? v.padFade : 1.0f);
-                    const float gr = vr * aenv * velGain * voicePad * riserGain * (v.mask == 1 ? v.padFade : 1.0f);
+                    const float gl = balL * vl * aenv * velGain * voicePad * riserGain;
+                    const float gr = balR * vr * aenv * velGain * voicePad * riserGain;
                     sumL += gl; sumR += gr;
                     padBus += 0.5f * (gl + gr);
                 }
@@ -919,7 +939,7 @@ public:
                     else
                     {
                         const float sg = aenv * velGain * smpLevel * riserGain;
-                        sumL += sl * sg; sumR += sr2 * sg;
+                        sumL += sl * sg * balL; sumR += sr2 * sg * balR;
                     }
                 }
 
@@ -1074,6 +1094,7 @@ private:
     double hostPpq = 0.0; bool hostPlaying = false, transportValid = false;
     int keysDown = 0;
     uint8_t noteMask = 3;
+    Voice* lastStarted = nullptr;
     std::vector<int> arpKeys, arpSounding;
     float arpVel = 0.8f; bool arpRunning = false;
     double arpToNext = 0.0, arpGateLeft = 0.0; int arpIdx = 0;
@@ -1145,7 +1166,14 @@ private:
                 else           seq = { r, f + 12, t + 12, f + 12, r + 12, f + 12, t + 24, f + 12 }; // broken chord, rolling
             }
             const int n = seq[(size_t) (arpIdx % (int) seq.size())];
+            lastStarted = nullptr;
             playOn (n, vel); arpSounding.push_back (n);
+            if (lastStarted != nullptr && values[pArpPan] > 0.0f)
+            {
+                const auto [lo, hi] = std::minmax_element (seq.begin(), seq.end());
+                const float pos = *hi > *lo ? (float) (n - *lo) / (float) (*hi - *lo) : 0.5f;
+                lastStarted->arpPan = (pos * 2.0f - 1.0f) * values[pArpPan];
+            }
         }
         noteMask = 3;
         ++arpIdx;
@@ -1732,6 +1760,8 @@ private:
         chosen->age = ++ageCounter;
         chosen->start (note, vel, true, false, rng);
         chosen->mask = noteMask;
+        chosen->arpPan = 0.0f;
+        lastStarted = chosen;
         chosen->padFade = noteMask == 1 ? 0.0f : 1.0f;
         chosen->glideMid = chosen->pitch;
         epSetup (*chosen);

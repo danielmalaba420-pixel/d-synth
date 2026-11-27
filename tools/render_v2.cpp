@@ -78,9 +78,10 @@ static Song songFor (const std::string& name)
     }
     else if (name.rfind ("ARP", 0) == 0)
     {
-        s.bpm = name == "ARP DRIVE" ? 124 : 100; s.beats = 18;
-        for (int c = 0; c < 4; ++c) { auto ch = kProg[(size_t) c]; std::vector<int> up (ch.begin() + 1, ch.begin() + 5); s.chord (c * 4.0, 3.95, up, 0.8f); }
-        if (name == "ARP DRIVE") s.mod (8, 16, 0, 1);
+        s.bpm = 100; s.beats = 34;
+        const std::vector<std::vector<int>> v = { { 51, 55, 58, 62 }, { 48, 51, 55, 58 }, { 44, 48, 51, 55 }, { 46, 50, 53, 58 } };   // Ebmaj7, Cm7, Abmaj7, Bb
+        for (int c = 0; c < 4; ++c) s.chord (c * 8.0, 7.95, v[(size_t) c], 0.8f);
+        if (name == "ARP DRIVE") s.mod (16, 30, 0, 1);
     }
     else if (name == "STRING DINSEI")
     {
