@@ -517,7 +517,7 @@ void SynthPanel::bindKnobs()
     if (name == "GLORY BRASS")             set = { { { "ampA", "ATTAQUE" }, { "padLevel", "SYNTH" }, { "ampR", "RELEASE" }, { "revMix", "REVERB" }, { "width", "WIDTH" }, { "output", "VOLUME" } } };
     if (name == "STRING DINSEI")           set = { { { "glide", "CHORD GLIDE" }, { "ampA", "ATTAQUE" }, { "padLevel", "PAD" }, { "revMix", "REVERB" }, { "width", "WIDTH" }, { "output", "VOLUME" } } };
     if (name == "STRING GLIDE")            set[0] = { "glide", "CHORD GLIDE" };
-    if (name == "THE PRAYER")              set = { { { "smpLevel", "PAD W-A" }, { "cutoff", "TONE" }, { "ampA", "ATTAQUE" }, { "chorus", "CHORUS" }, { "revMix", "REVERB" }, { "output", "VOLUME" } } };
+    if (name == "THE PRAYER")              set = { { { "smpLevel", "PAD W-A" }, { "waFade", "FONDU" }, { "ampA", "ATTAQUE" }, { "ampR", "RELEASE" }, { "revMix", "REVERB" }, { "output", "VOLUME" } } };
     if (name == "SIGNLY")                  set = { { { "glide", "GLIDE" }, { "dlyFb", u8 ("R\xc3\x89P\xc3\x89TITIONS") }, { "dlyMix", "DELAY" }, { "dlyBloom", "BLOOM" }, { "revMix", "REVERB" }, { "output", "VOLUME" } } };
     if (name == "RISER")                   set = { { { "riserBars", u8 ("DUR\xc3\x89" "E") }, { "riserPitch", u8 ("MONT\xc3\x89" "E") }, { "cutoff", "TONE" }, { "dlyMix", "DELAY" }, { "revMix", "REVERB" }, { "output", "VOLUME" } } };
     if (name == "FX KIT")                  set = { { { "revSize", "ESPACE" }, { "revMix", "REVERB" }, { "dlyMix", "DELAY" }, { "comp", "PUNCH" }, { "width", "WIDTH" }, { "output", "VOLUME" } } };

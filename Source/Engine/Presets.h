@@ -159,17 +159,14 @@ inline const std::vector<Preset>& factoryPresets()
             { pRevHall, 1 }, { pRevPre, 30 }, { pRevSize, 0.92f }, { pRevDamp, 0.45f }, { pRevMix, 0.34f }, { pComp, 0.25f }, { pOutput, 0.5f } } },
 
         // 12
-        { "THE PRAYER", "Pad glorieux · W-A by Daniel Malaba · atmosphère de prière", "NAPPE", {
-            { pSmpSet, 7 }, { pSmpLevel, 1.0f }, { pPadLevel, 0.25f }, { pMwPad, 1.0f },
-            { pOscAWave, 0 }, { pUnison, 5 }, { pDetune, 11 }, { pSpread, 0.9f },
-            { pOscBWave, 3 }, { pOscBLevel, 0.25f }, { pOscBSemi, 12 }, { pOscBDetune, -5 }, { pSubLevel, 0.15f }, { pSubOct, 0 }, { pNoise, 0.0f },
-            { pPoly, 1 }, { pGlide, 0 },
-            { pAmpA, 700 }, { pAmpD, 2500 }, { pAmpS, 1.0f }, { pAmpR, 2200 }, { pVelSens, 0.25f },
-            { pCutoff, 1600 }, { pReso, 0.0f }, { pKeyTrack, 0.3f }, { pFiltEnv, 0.4f }, { pFiltA, 900 }, { pFiltD, 3000 }, { pFiltS, 0.6f }, { pFiltR, 2200 }, { pVelCutoff, 0.2f },
-            { pLfoRate, 0.08f }, { pLfoCut, 0.08f }, { pDrive, 0.0f }, { pVelDrive, 0.0f }, { pShimmer, 0.0f }, { pChorus, 0.35f },
-            { pMwFilter, 0.7f }, { pMwVibrato, 0.0f }, { pVibDepth, 0.0f },
+        { "THE PRAYER", "Worship Atmosphere by Daniel Malaba · une prise par tonalité", "NAPPE", {
+            { pSmpSet, 7 }, { pSmpLevel, 1.0f }, { pPadLevel, 0.0f }, { pMwPad, 0.0f }, { pWaFade, 2.0f },
+            { pOscAWave, 0 }, { pUnison, 1 }, { pOscBLevel, 0.0f }, { pSubLevel, 0.0f }, { pNoise, 0.0f },
+            { pPoly, 1 }, { pGlide, 0 }, { pArp, 0 },
+            { pAmpA, 400 }, { pAmpD, 100 }, { pAmpS, 1.0f }, { pAmpR, 3000 }, { pVelSens, 0.0f },
+            { pChorus, 0.0f }, { pShimmer, 0.0f }, { pDrive, 0.0f }, { pMwFilter, 0.0f }, { pMwVibrato, 0.0f }, { pVibDepth, 0.0f },
             { pDlyMix, 0.0f },
-            { pRevHall, 1 }, { pRevPre, 25 }, { pRevSize, 0.95f }, { pRevDamp, 0.55f }, { pRevMix, 0.38f }, { pWidth, 1.1f }, { pComp, 0.3f }, { pOutput, -3.4f } } },
+            { pRevHall, 1 }, { pRevPre, 20 }, { pRevSize, 0.8f }, { pRevDamp, 0.55f }, { pRevMix, 0.0f }, { pWidth, 1.0f }, { pComp, 0.0f }, { pOutput, -3.4f } } },
 
         // 13
         { "HOLY G", "Orgue enregistré · Leslie à la molette", "CLAVIER", {

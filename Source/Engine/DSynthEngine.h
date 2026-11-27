@@ -532,7 +532,10 @@ public:
 
     void noteOn (int note, float vel)
     {
-        waEvalIn = (int) (0.025f * sr);   // let the whole chord arrive, then pick the W-A key
+        // W-A pad: the key you press chooses the take. Keys pressed together (within 25 ms) count as one gesture
+        // and its lowest key wins, so a chord played as one block never jumps to another tonality.
+        if (waEvalIn < 0) waPending = note; else waPending = std::min (waPending, note);
+        waEvalIn = (int) (0.025f * sr);
         if (keysDown == 0) { riserSamples = 0; percEnv = 1.0f; }   // a new phrase: riser restarts, organ percussion fires
         ++keysDown;
         if (values[pArp] > 0.5f && std::lround (values[pEngine]) != 3) { arpAdd (note, vel); return; }
@@ -604,7 +607,7 @@ public:
     void soundChanged()
     {
         allNotesOff();
-        for (auto& sl : wa) { sl.key = -1; sl.g = 0.0f; sl.target = 0.0f; } waGate = 0.0f; waKey = -1; waPos = 0.0;
+        for (auto& sl : wa) { sl.key = -1; sl.g = 0.0f; sl.target = 0.0f; } waGate = 0.0f; waKey = -1; waEvalIn = -1; waPending = 128;
         for (auto& v : voices) if (v.active) v.killing = true;
     }
 
@@ -1115,7 +1118,7 @@ public:
                 sumR += eqAirR.process (eqMudR.process (eqWarmR.process (strR)));
             }
 
-            if (waOn) { float wl, wr; waTick (wl, wr); sumL += wl; sumR += wr; }
+            if (waOn) { float wl, wr; waTick (wl, wr); sumL = wl; sumR = wr; padBus = 0.0f; }   // The Prayer = Dan's takes only, no synth on top
 
             if (orgLevel > 0.0001f || organSmp)
             {
@@ -1501,21 +1504,12 @@ private:
     }
 
     // ---- organ bus: vibrato/chorus scanner, tube drive, rotary speaker (horn + drum, own speeds)
-    // ---- W-A worship pad (The Prayer): Dan's pads are recorded in every key (root + fifth, no third), so the
-    //      texture follows the ROOT of the chord being played and crossfades (0.9 s) to the new key, continuing at
-    //      the same place in the recording so the change is seamless. The synth voices play the exact notes on top.
-    struct WaSlot { int key = -1; float g = 0.0f, target = 0.0f; };
-    WaSlot wa[3]; int waKey = -1, waEvalIn = -1; float waGate = 0.0f, waLevel = 0.0f; double waPos = 0.0;
-    // the pad plays the key of the LOWEST key you hold (your bass note): D under your fingers = the D pad,
-    // A = the A pad, whatever you play above it. Keys held only by the sustain pedal don't count, so a new bass
-    // note always takes over. Releasing keys never changes the pad.
-    int bassKey() const
-    {
-        int lowest = 999;
-        for (auto& v : voices)
-            if (v.active && v.keyDown && ! v.released) lowest = std::min (lowest, v.note);
-        return lowest == 999 ? -1 : lowest % 12;
-    }
+    // ---- W-A worship pad (The Prayer): one whole take per tonality (Dan's Worship Atmosphere, recorded in all 12
+    //      keys). Each key = a pitch class: C (any octave) plays the C take, D the D take... A new key fades the
+    //      old take out while the new one comes in (equal-power, FONDU 0.1-8 s); the same key again changes
+    //      nothing. Release is soft and the sustain pedal holds the pad. Nothing else sounds with it.
+    struct WaSlot { int key = -1; float g = 0.0f, target = 0.0f; double pos = 0.0; };
+    WaSlot wa[3]; int waKey = -1, waEvalIn = -1, waPending = 128; float waGate = 0.0f, waLevel = 0.0f;
     void waTick (float& outL, float& outR)
     {
         outL = outR = 0.0f;
@@ -1523,21 +1517,30 @@ private:
         if (b == nullptr) return;
         if (waEvalIn >= 0 && --waEvalIn < 0)
         {
-            const int r = bassKey();
-            if (r >= 0 && r != waKey)
+            const int r = waPending % 12;
+            waPending = 128;
+            if (waGate < 0.001f) waKey = -1;           // pad fully faded: start the take again from its beginning
+            if (r != waKey)
             {
                 waKey = r;
                 WaSlot* s = nullptr;
-                for (auto& sl : wa) if (sl.key == r) s = &sl;
-                if (s == nullptr) { s = &wa[0]; for (auto& sl : wa) if (sl.g < s->g) s = &sl; s->key = r; if (waGate < 0.01f) s->g = 1.0f; }
+                for (auto& sl : wa) if (sl.key == r && sl.g > 0.0f) s = &sl;
+                if (s == nullptr)
+                {
+                    s = &wa[0]; for (auto& sl : wa) if (sl.g < s->g) s = &sl;
+                    s->key = r; s->pos = 0.0; s->g = waGate < 0.01f ? 1.0f : 0.0f;
+                    if (waGate < 0.01f) for (auto& sl : wa) if (&sl != s) sl.g = 0.0f;
+                }
                 for (auto& sl : wa) sl.target = &sl == s ? 1.0f : 0.0f;
             }
         }
         const bool anyHeld = keysDown > 0 || std::any_of (voices.begin(), voices.end(), [] (const Voice& v) { return v.active && v.sustained; });
         const float gT = anyHeld && waKey >= 0 ? 1.0f : 0.0f;
-        waGate += (gT - waGate) * (gT > waGate ? 1.0f / (1.2f * sr) * 3.0f : 1.0f / (4.5f * sr) * 3.0f);
-        if (waGate < 1.0e-4f && gT == 0.0f) { waGate = 0.0f; waPos = 0.0; return; }
-        const float step = 1.0f / (0.9f * sr);
+        const float atk = std::max (0.05f, values[pAmpA] * 0.001f), rel = std::max (0.3f, values[pAmpR] * 0.001f);
+        if (gT > waGate) waGate = std::min (1.0f, waGate + 1.0f / (atk * sr));
+        else waGate += (gT - waGate) * (1.0f - std::exp (-4.6f / (rel * sr)));   // ~ -40 dB after the release time
+        if (waGate < 1.0e-4f && gT == 0.0f) { waGate = 0.0f; for (auto& sl : wa) { sl.g = 0.0f; sl.key = -1; } return; }
+        const float step = 1.0f / (clampf (values[pWaFade], 0.1f, 8.0f) * sr);
         float l = 0.0f, r = 0.0f;
         for (auto& sl : wa)
         {
@@ -1546,16 +1549,15 @@ private:
             const SampleZone* z = b->find (kWaPad, 60 + sl.key, 100);
             if (z == nullptr || ! z->looped()) continue;
             const double len = (double) (z->loopEnd - z->loopStart);
-            double pos = waPos * z->rate / sr;
-            pos = pos < (double) z->loopStart ? pos : (double) z->loopStart + std::fmod (pos - (double) z->loopStart, len);
-            float a, c; z->read (pos, a, c);
-            const float g = std::sin (sl.g * 1.5707963f);   // equal-power crossfade between keys
+            if (sl.pos >= (double) z->loopEnd) sl.pos -= len;
+            float a, c; z->read (sl.pos, a, c);
+            sl.pos += z->rate / sr;
+            const float th = sl.g * 1.5707963f;
+            const float g = std::sin (th);   // equal-power: the in/out ramps mirror each other, so sin/cos
             l += a * g; r += c * g;
         }
-        waPos += 1.0;
         const float k = waGate * waLevel * 1.6f;
-        const float m = 0.5f * (l + r), sd = 0.5f * (l - r) * 0.7f;   // the takes are very wide: keep them solid in mono
-        outL = (m + sd) * k; outR = (m - sd) * k;
+        outL = l * k; outR = r * k;                   // the takes keep their own stereo, reverb and delay
     }
 
     void organFx (float x, float side, float& outL, float& outR, int vibMode, float drv, float les)
