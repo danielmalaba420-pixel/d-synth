@@ -159,14 +159,15 @@ inline const std::vector<Preset>& factoryPresets()
             { pRevHall, 1 }, { pRevPre, 30 }, { pRevSize, 0.92f }, { pRevDamp, 0.45f }, { pRevMix, 0.34f }, { pComp, 0.25f }, { pOutput, 0.5f } } },
 
         // 12
-        { "THE PRAYER", "Worship Atmosphere by Daniel Malaba · pad note par note", "NAPPE", {
+        { "THE PRAYER", "Worship Atmosphere by Daniel Malaba · pad chaud note par note", "NAPPE", {
             { pSmpSet, 7 }, { pSmpLevel, 1.0f }, { pPadLevel, 0.0f }, { pMwPad, 0.0f },
             { pOscAWave, 0 }, { pUnison, 1 }, { pOscBLevel, 0.0f }, { pSubLevel, 0.0f }, { pNoise, 0.0f },
             { pPoly, 1 }, { pGlide, 0 }, { pArp, 0 },
-            { pAmpA, 400 }, { pAmpD, 100 }, { pAmpS, 1.0f }, { pAmpR, 3000 }, { pVelSens, 0.0f },
+            { pAmpA, 900 }, { pAmpD, 1500 }, { pAmpS, 0.92f }, { pAmpR, 3000 }, { pVelSens, 0.3f },
+            { pCutoff, 2400 }, { pReso, 0.0f }, { pVelCutoff, 0.6f }, { pLfoRate, 0.12f }, { pLfoCut, 0.0f },
             { pChorus, 0.0f }, { pShimmer, 0.0f }, { pDrive, 0.0f }, { pMwFilter, 0.0f }, { pMwVibrato, 0.0f }, { pVibDepth, 0.0f },
             { pDlyMix, 0.0f },
-            { pRevHall, 1 }, { pRevPre, 20 }, { pRevSize, 0.8f }, { pRevDamp, 0.55f }, { pRevMix, 0.12f }, { pWidth, 1.0f }, { pComp, 0.0f }, { pOutput, -1.9f } } },
+            { pRevHall, 1 }, { pRevPre, 25 }, { pRevSize, 0.85f }, { pRevDamp, 0.75f }, { pRevMix, 0.2f }, { pWidth, 1.0f }, { pComp, 0.0f }, { pOutput, 0.0f } } },
 
         // 13
         { "HOLY G", "Orgue enregistré · Leslie à la molette", "CLAVIER", {

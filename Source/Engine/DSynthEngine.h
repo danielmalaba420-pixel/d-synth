@@ -16,7 +16,7 @@ namespace dsynth
 {
 
 constexpr double kPi = 3.14159265358979323846;
-constexpr int kMaxVoices = 16;
+constexpr int kMaxVoices = 24;
 constexpr int kMaxUnison = 7;
 
 inline float dbToGain (float db) { return std::pow (10.0f, db / 20.0f); }
@@ -259,6 +259,7 @@ struct Voice
     double glideFrom = 60.0, glideTo = 60.0, vGlideC1 = 0.0, vGlideC2 = 0.0;
     float legT = 0.0f, legDur = 0.07f, legDip = 0.0f, noteAge = 0.0f;
     OnePole slideLpL, slideLpR;
+    OnePole warmL1, warmL2, warmR1, warmR2;   // The Prayer: warm 12 dB lowpass, no resonance
     // Disney legato (measured on Session Strings): kind 0 = finger change in an inner voice, 1 = sung slide in the melody
     // kind 0 = normal slide, 1 = slow portamento (soft), 2 = quick finger change (hard, no audible slide)
     int legKind = 0; float legPrep = 0.0f, legLag = 0.0f, legTotal = 0.1f, legOffR = 0.0f;
@@ -685,6 +686,8 @@ public:
         const bool fxMode = engineMode == 3;
         const float smpLevel = (p[pSmpSet] > 0.5f && samplesReady()) ? p[pSmpLevel] * (std::lround (p[pSmpSet]) == 7 ? 1.0f + 0.7f * mod : 1.0f) : 0.0f;   // The Prayer: the wheel swells the pad
         const bool organSmp = smpLevel > 0.0f && std::lround (p[pSmpSet]) == 4;
+        const bool warmPad = smpLevel > 0.0f && std::lround (p[pSmpSet]) == 7;
+        const float warmCut = p[pCutoff], warmVel = p[pVelCutoff];
         const float orgLevel = p[pOrgLevel];
         const float padGain = clampf (padLevel + mod * p[pMwPad], 0.0f, 1.5f);
         const bool riserOn = p[pRiser] > 0.5f;
@@ -1052,6 +1055,16 @@ public:
                         const float lvl = 1.0f - mw * 0.45f * (1.0f - mod);
                         sl = (lowL + (sl - lowL) * hi) * lvl;
                         sr2 = (lowR + (sr2 - lowR) * hi) * lvl;
+                    }
+                    if (warmPad)
+                    {
+                        // The Prayer: two gentle one-pole lowpasses (12 dB/oct, Q 0.5: no resonance, nothing can whistle),
+                        // half key tracking, velocity opens it a little, and a very slow +-6 % breath
+                        const float fc = warmCut * std::exp2 (0.5f * ((float) v.note - 60.0f) / 12.0f + warmVel * (v.velocity - 0.75f))
+                                       * (1.0f + 0.06f * sinTab (lfoPhase));
+                        const float c = OnePole::coefFor (clampf (fc, 150.0f, 14000.0f), sr);
+                        sl = v.warmL2.lp (v.warmL1.lp (sl, c), c);
+                        sr2 = v.warmR2.lp (v.warmR1.lp (sr2, c), c);
                     }
                     if (organSmp)
                     {
