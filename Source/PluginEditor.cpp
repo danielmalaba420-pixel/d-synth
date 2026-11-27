@@ -444,11 +444,10 @@ void SoundScreen::paint (juce::Graphics& g)
 //==============================================================================
 KeyBed::KeyBed (DSynthProcessor& p, DSynthLookAndFeel& l) : proc (p), lnf (l) {}
 
-// one colour per octave, like the coloured keys of Kontakt instruments (same palette as D-GTRACK)
 juce::Colour KeyBed::zoneColour (int note)
 {
-    static const juce::Colour z[3] = { juce::Colour (0xff3ccb7f), juce::Colour (0xff3d8bff), juce::Colour (0xffff5e57) };
-    return z[juce::jlimit (0, 2, (note - kLow) / 12)];
+    const float t = juce::jlimit (0.0f, 1.0f, (float) (note - kLow) / (float) (kHigh - kLow));
+    return juce::Colour::fromHSV (std::fmod (0.99f + t * 0.76f, 1.0f), 0.68f, 0.95f, 1.0f);
 }
 
 void KeyBed::update()
@@ -483,7 +482,7 @@ void KeyBed::update()
 juce::Rectangle<float> KeyBed::whiteRect (int wi) const
 {
     const float w = (float) getWidth() / 21.0f;
-    return { (float) wi * w, kBand, w, (float) getHeight() - kBand };
+    return { (float) wi * w, 0.0f, w, (float) getHeight() };
 }
 
 juce::Rectangle<float> KeyBed::blackRect (int note) const
@@ -492,12 +491,11 @@ juce::Rectangle<float> KeyBed::blackRect (int note) const
     static const int whiteBefore[12] = { 0, 1, 1, 2, 2, 3, 4, 4, 5, 5, 6, 6 };
     const int oct = (note - kLow) / 12, k = (note - kLow) % 12;
     const float x = ((float) (oct * 7 + whiteBefore[k])) * w - w * 0.3f;
-    return { x, kBand, w * 0.6f, ((float) getHeight() - kBand) * 0.62f };
+    return { x, 0.0f, w * 0.6f, (float) getHeight() * 0.62f };
 }
 
 int KeyBed::noteAt (juce::Point<float> p) const
 {
-    p.y = juce::jmax (p.y, kBand);
     for (int n = kLow; n <= kHigh; ++n) if (isBlack (n) && blackRect (n).contains (p)) return n;
     static const int whiteNotes[7] = { 0, 2, 4, 5, 7, 9, 11 };
     const int wi = juce::jlimit (0, 20, (int) (p.x / ((float) getWidth() / 21.0f)));
@@ -530,25 +528,6 @@ void KeyBed::mouseUp (const juce::MouseEvent&)
 void KeyBed::paint (juce::Graphics& g)
 {
     static const int whiteNotes[7] = { 0, 2, 4, 5, 7, 9, 11 };
-    // colour band above the keys: one zone per octave, with its name and range
-    {
-        const float w = (float) getWidth() / 3.0f;
-        static const char* names[3] = { "GRAVE", "M\xc3\x89" "DIUM", "AIGU" };
-        for (int o = 0; o < 3; ++o)
-        {
-            auto r = juce::Rectangle<float> ((float) o * w + 1.0f, 0.0f, w - 2.0f, kBand + 4.0f);
-            const auto c = zoneColour (kLow + 12 * o);
-            g.setColour (c);
-            g.fillRoundedRectangle (r, 4.0f);
-            g.setColour (juce::Colour (0xff0f1113));
-            g.setFont (lnf.label (12.0f));
-            auto tr = r.withTrimmedBottom (4.0f).reduced (8.0f, 0.0f);
-            g.drawText (juce::String::fromUTF8 (names[o]), tr, juce::Justification::centredLeft);
-            g.setColour (juce::Colour (0xff0f1113).withAlpha (0.7f));
-            g.drawText ("C" + juce::String (kLow / 12 - 1 + o) + juce::String::fromUTF8 ("\xe2\x80\x93") + "B" + juce::String (kLow / 12 - 1 + o),
-                        tr, juce::Justification::centredRight);
-        }
-    }
     for (int wi = 0; wi < 21; ++wi)
     {
         const int note = kLow + (wi / 7) * 12 + whiteNotes[wi % 7];
@@ -562,12 +541,13 @@ void KeyBed::paint (juce::Graphics& g)
         body.addColour (0.7, juce::Colour (0xfff1eee6));
         g.setGradientFill (body);
         g.fillPath (p);
+        if (s > 0)
         {
-            // transparent colour over the key, like Kontakt; the played key takes the full colour
             const auto z = zoneColour (note);
-            g.setColour (z.withAlpha (s == 1 ? 0.85f : (s == 2 ? 0.55f : 0.26f)));
+            g.setColour (z.withAlpha (s == 1 ? 0.55f : 0.25f));
             g.fillPath (p);
-            if (s > 0) { g.setColour (z.brighter (0.3f).withAlpha (0.95f)); g.fillRect (k.withHeight (6.0f)); }
+            g.setColour (z.withAlpha (s == 1 ? 0.9f : 0.45f));
+            g.fillRect (k.withHeight (6.0f));
         }
         // front lip and top shading
         g.setColour (juce::Colour (0xffcdc7bb));
@@ -595,9 +575,9 @@ void KeyBed::paint (juce::Graphics& g)
         g.fillPath (p);
         g.setColour (juce::Colours::black);
         g.fillRect (k.withTop (k.getBottom() - 7.0f).reduced (1, 0));
+        if (s > 0)
         {
-            const auto z = zoneColour (n);
-            g.setColour (s == 1 ? z.withAlpha (0.95f) : (s == 2 ? z.withAlpha (0.7f) : z.darker (0.5f).withAlpha (0.55f)));
+            g.setColour (zoneColour (n).withAlpha (s == 1 ? 0.7f : 0.35f));
             g.fillPath (p);
         }
         // glossy streak

@@ -112,7 +112,6 @@ public:
     void mouseUp (const juce::MouseEvent&) override;
 
     static constexpr int kLow = 36, kHigh = 71;
-    static constexpr float kBand = 18.0f;   // height of the colour band above the keys
     static juce::Colour zoneColour (int note);
 
 private:
