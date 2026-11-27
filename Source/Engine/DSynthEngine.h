@@ -805,13 +805,13 @@ public:
                 {
                     // the pad behind the arpeggio: three detuned saws + a soft sub, dark and wide, fades in and out
                     if (v.keyDown || v.sustained) v.padFade = std::min (1.0f, v.padFade + dt / 0.7f);
-                    else { v.padFade -= dt / 1.1f; if (v.padFade <= 0.0f) { v.padFade = 0.0f; v.active = false; continue; } }
-                    const double hz = 440.0 * std::pow (2.0, (v.pitch + pbSemis - 69.0) / 12.0);
+                    else { v.padFade -= dt / 0.45f; if (v.padFade <= 0.0f) { v.padFade = 0.0f; v.active = false; continue; } }
+                    const double hz = 440.0 * std::pow (2.0, (v.pitch + v.smpTrans + pbSemis - 69.0) / 12.0);
                     const float a = v.uni[0].tick (0, std::min (0.49, hz * 1.0046 / sr));
                     const float c = v.uni[1].tick (0, std::min (0.49, hz * 0.9954 / sr));
                     const float m = v.uni[2].tick (0, std::min (0.49, hz / sr));
-                    const float sub = v.sub.tick (3, hz * 0.5 / sr);
-                    const float fc = clampf (650.0f * std::pow (2.0f, (float) (v.note - 60) / 12.0f * 0.3f), 200.0f, 2500.0f);
+                    const float sub = 0.0f;
+                    const float fc = clampf (650.0f * std::pow (2.0f, (float) (v.note + v.smpTrans - 60) / 12.0f * 0.5f), 200.0f, 2200.0f);
                     const float g = std::tan ((float) kPi * fc / sr);
                     const float a1 = 1.0f / (1.0f + g * (g + 1.4f)), a2 = g * a1, a3 = g * a2;
                     const float pl = v.fL2.process (v.fL1.process (a * 0.7f + m * 0.5f + sub * 0.5f, a1, a2, a3), a1, a2, a3);
@@ -961,6 +961,8 @@ public:
                     orgBus += o * orgNorm * aenv * orgLevel;
                 }
             }
+
+            if (p[pArpDust] > 0.0f && arpRunning) dustTick (sumL, sumR, p[pArpDust]);
 
             if (orgLevel > 0.0001f || organSmp)
             {
@@ -1482,6 +1484,44 @@ private:
         const float ang = (clampf (pan, -1.0f, 1.0f) + 1.0f) * 0.25f * (float) kPi;
         outL = s * std::cos (ang) * 1.4142f * g;
         outR = s * std::sin (ang) * 1.4142f * g;
+    }
+
+    struct Grain { bool on = false; double ph = 0, inc = 0; float t = 0, dur = 0.2f, amp = 0, pan = 0; };
+    std::array<Grain, 24> grains;
+    float dustTimer = 0.0f;
+
+    void dustTick (float& l, float& r, float amount)
+    {
+        const float dt = 1.0f / sr;
+        dustTimer -= dt;
+        if (dustTimer <= 0.0f && ! arpKeys.empty())
+        {
+            dustTimer = 0.03f + 0.12f * rng.unit();                       // about ten specks per second, irregular
+            const int base = arpKeys[(size_t) std::min ((int) arpKeys.size() - 1, (int) (rng.unit() * (float) arpKeys.size()))];
+            float trans = 0.0f;
+            for (auto& v : voices) if (v.active && v.mask == 1) { trans = v.smpTrans; break; }
+            const int n = base + (int) trans + (rng.unit() < 0.5f ? 12 : 24);
+            for (auto& gr : grains)
+                if (! gr.on)
+                {
+                    gr.on = true; gr.ph = 0.0; gr.t = 0.0f;
+                    gr.inc = 440.0 * std::pow (2.0, (std::min (n, 100) - 69.0) / 12.0) / sr;
+                    gr.dur = 0.15f + 0.35f * rng.unit();
+                    gr.amp = 0.085f * amount * (0.4f + 0.6f * rng.unit());
+                    gr.pan = rng.next() * 0.9f;
+                    break;
+                }
+        }
+        for (auto& gr : grains)
+        {
+            if (! gr.on) continue;
+            gr.t += dt;
+            if (gr.t >= gr.dur) { gr.on = false; continue; }
+            gr.ph += gr.inc; if (gr.ph >= 1.0) gr.ph -= 1.0;
+            const float w = std::sin ((float) kPi * gr.t / gr.dur);
+            const float s = sinTab (gr.ph) * w * w * gr.amp;               // pure sine: soft, never bright
+            l += s * (1.0f - gr.pan); r += s * (1.0f + gr.pan);
+        }
     }
 
     void chorusTick (float& l, float& r, float amt)
