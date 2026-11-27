@@ -34,8 +34,22 @@ namespace
             std::thread ([this]
             {
                 auto b = std::make_shared<SampleBank>();
+                // FLAC is lossless: the 16-bit samples come back exactly as recorded
+                auto decode = [] (const std::string& path, int16_t* dest, int frames, int channels) -> bool
+                {
+                    juce::FlacAudioFormat flac;
+                    std::unique_ptr<juce::AudioFormatReader> r (flac.createReaderFor (new juce::FileInputStream (juce::File (path)), true));
+                    if (r == nullptr || (int) r->numChannels != channels || r->lengthInSamples < frames) return false;
+                    std::vector<int> a ((size_t) frames), c ((size_t) frames);
+                    int* chans[2] = { a.data(), channels == 2 ? c.data() : nullptr };
+                    if (! r->read (chans, channels, 0, frames, false)) return false;
+                    for (int i = 0; i < frames; ++i)
+                        for (int ch = 0; ch < channels; ++ch)
+                            dest[(size_t) i * (size_t) channels + (size_t) ch] = (int16_t) ((ch == 0 ? a : c)[(size_t) i] >> 16);
+                    return true;
+                };
                 for (auto& dir : candidates())
-                    if (dir.getChildFile ("samples.txt").existsAsFile() && b->load (dir.getFullPathName().toStdString()))
+                    if (dir.getChildFile ("samples.txt").existsAsFile() && b->load (dir.getFullPathName().toStdString(), decode))
                         break;
                 { std::lock_guard<std::mutex> g (lock); bank = b; }
                 done = true;

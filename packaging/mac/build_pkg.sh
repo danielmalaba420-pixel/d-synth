@@ -6,7 +6,7 @@
 #   NOTARY_APPLE_ID, NOTARY_TEAM_ID, NOTARY_PASSWORD (app-specific password)
 set -euo pipefail
 set -x
-VERSION="$1"; ART="$2"; OUT="$3"
+VERSION="$1"; ART="$2"; OUT="$3"; SAMPLES="${4:-}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
 WORK="$(mktemp -d)"
 mkdir -p "$OUT"
@@ -45,6 +45,13 @@ PLIST
 component_pkg au   au   "/Library/Audio/Plug-Ins/Components" "D-SYNTH.component"
 component_pkg vst3 vst3 "/Library/Audio/Plug-Ins/VST3" "D-SYNTH.vst3"
 component_pkg app  app  "/Applications" "D-SYNTH.app"
+
+# The sounds (strings, brass, piano, organ, glockenspiel), lossless FLAC, shared by every D-SYNTH format
+if [ -z "$SAMPLES" ] || [ ! -f "$SAMPLES/samples.txt" ]; then echo "Missing samples folder"; exit 1; fi
+mkdir -p "$WORK/samples"
+cp "$SAMPLES"/samples.txt "$SAMPLES"/*.flac "$WORK/samples/"
+pkgbuild --root "$WORK/samples" --identifier "com.danova.dsynth.samples" --version "$VERSION" \
+         --install-location "/Library/Application Support/Danova/D-SYNTH/Samples" "$WORK/samples.pkg"
 
 sed "s/@VERSION@/$VERSION/g" "$HERE/distribution.xml" > "$WORK/distribution.xml"
 PKG="$OUT/D-SYNTH-$VERSION-Mac.pkg"

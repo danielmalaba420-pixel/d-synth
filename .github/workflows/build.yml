@@ -6,12 +6,12 @@ concurrency:
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, v2 ]
     tags: [ 'v*' ]
   workflow_dispatch:
 
 env:
-  VERSION: "1.0.0"
+  VERSION: "2.0.0"
 
 jobs:
   mac:
@@ -49,14 +49,26 @@ jobs:
         run: |
           lipo -info build/DSynth_artefacts/Release/AU/D-SYNTH.component/Contents/MacOS/D-SYNTH
           ls -la build/DSynth_artefacts/Release build/DSynth_artefacts/Release/*
-          packaging/mac/build_pkg.sh "$VERSION" build/DSynth_artefacts/Release dist 2>&1 | tee pkg.log
+          packaging/mac/build_pkg.sh "$VERSION" build/DSynth_artefacts/Release dist Samples 2>&1 | tee pkg.log
           exit ${PIPESTATUS[0]}
       - name: Test the installer on this Mac
         run: |
           sudo installer -pkg "dist/D-SYNTH-$VERSION-Mac.pkg" -target /
           ls -d /Library/Audio/Plug-Ins/Components/D-SYNTH.component /Library/Audio/Plug-Ins/VST3/D-SYNTH.vst3 /Applications/D-SYNTH.app
           killall -9 AudioComponentRegistrar 2>/dev/null || true
+          ls "/Library/Application Support/Danova/D-SYNTH/Samples" | wc -l
+          test -f "/Library/Application Support/Danova/D-SYNTH/Samples/samples.txt"
           auval -v aumu Dsyn Dnva | tail -4
+      - name: Check the interface on macOS (snapshot of the real editor)
+        continue-on-error: true
+        run: |
+          cmake -B snap -DDSYNTH_SNAPSHOT=ON -DCMAKE_BUILD_TYPE=Release
+          cmake --build snap --config Release --target DSynthSnapshot
+          mkdir -p dist
+          SNAP=$(find snap -name DSynthSnapshot -type f -perm -u+x | head -1)
+          "$SNAP" dist/interface-mac.png 9
+          "$SNAP" dist/interface-mac-accord.png 10 "48,52,55,60,64" NAPPE
+          "$SNAP" --bank "/Library/Application Support/Danova/D-SYNTH/Samples" "/Library/Application Support/Danova/D-SYNTH/Samples" | tee dist/samples-check.txt
       - name: Send the log back if something failed
         if: failure()
         run: |
@@ -66,7 +78,10 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: D-SYNTH-Mac
-          path: dist/D-SYNTH-${{ env.VERSION }}-Mac.pkg
+          path: |
+            dist/D-SYNTH-${{ env.VERSION }}-Mac.pkg
+            dist/*.png
+            dist/samples-check.txt
 
   windows:
     name: Windows installer (Setup.exe, 64-bit)
@@ -86,14 +101,15 @@ jobs:
           New-Item -ItemType Directory -Force dist | Out-Null
           $out = (Resolve-Path "dist").Path
           Push-Location packaging/windows
-          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DAppVersion=$env:VERSION" "/DArtDir=$art" "/DOutDir=$out" D-SYNTH.iss
+          $smp = (Resolve-Path "Samples").Path
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DAppVersion=$env:VERSION" "/DArtDir=$art" "/DSmpDir=$smp" "/DOutDir=$out" D-SYNTH.iss
           Pop-Location
           Get-ChildItem dist
       - name: Test the installer on this PC
         shell: pwsh
         run: |
           Start-Process -Wait -FilePath "dist\D-SYNTH-$env:VERSION-Windows-Setup.exe" -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART"
-          foreach ($f in @("C:\Program Files\Common Files\VST3\D-SYNTH.vst3\Contents\x86_64-win\D-SYNTH.vst3", "C:\Program Files\Danova\D-SYNTH\D-SYNTH.exe")) {
+          foreach ($f in @("C:\Program Files\Common Files\VST3\D-SYNTH.vst3\Contents\x86_64-win\D-SYNTH.vst3", "C:\Program Files\Danova\D-SYNTH\D-SYNTH.exe", "C:\ProgramData\Danova\D-SYNTH\Samples\samples.txt")) {
             if (-not (Test-Path $f)) { throw "Missing after install: $f" } else { Write-Host "OK $f" }
           }
       - uses: actions/upload-artifact@v4
@@ -115,8 +131,14 @@ jobs:
       - name: Push to builds branch
         run: |
           mkdir out
-          find dist -type f \( -name '*.pkg' -o -name '*.exe' \) -exec cp {} out/ \;
+          find dist -type f \( -name '*.pkg' -o -name '*.exe' -o -name '*.png' -o -name '*.txt' \) -exec cp {} out/ \;
           cd out
+          # GitHub refuses files over 100 MB: big installers are cut into 90 MB parts (join them with cat)
+          for f in *.pkg *.exe; do
+            [ -f "$f" ] || continue
+            if [ $(stat -c %s "$f") -gt 95000000 ]; then split -b 90m "$f" "$f.part-" && sha256sum "$f" > "$f.sha256" && rm "$f"; fi
+          done
+          ls -la
           echo "Commit ${GITHUB_SHA}" > BUILD.txt
           git init -q
           git checkout -q -b builds

@@ -1,8 +1,8 @@
 ; D-SYNTH by Danova — Windows installer (Inno Setup 6)
-; Built by GitHub Actions:  ISCC /DAppVersion=1.0.0 /DArtDir=<artefacts> /DOutDir=<dist> D-SYNTH.iss
+; Built by GitHub Actions:  ISCC /DAppVersion=2.0.0 /DArtDir=<artefacts> /DSmpDir=<samples> /DOutDir=<dist> D-SYNTH.iss
 
 #ifndef AppVersion
-  #define AppVersion "1.0.0"
+  #define AppVersion "2.0.0"
 #endif
 
 [Setup]
@@ -43,6 +43,8 @@ Name: "app"; Description: "{cm:StandaloneApp}"; Types: full
 ; VST3 bundle goes to the standard folder every DAW scans
 Source: "{#ArtDir}\VST3\D-SYNTH.vst3\*"; DestDir: "{commoncf64}\VST3\D-SYNTH.vst3"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: vst3
 Source: "{#ArtDir}\Standalone\D-SYNTH.exe"; DestDir: "{app}"; Flags: ignoreversion; Components: app
+; the sounds (lossless FLAC), shared by the VST3 and the app
+Source: "{#SmpDir}\*"; DestDir: "{commonappdata}\Danova\D-SYNTH\Samples"; Flags: ignoreversion
 Source: "LISEZ-MOI-Windows.txt"; DestDir: "{app}"; DestName: "LISEZ-MOI.txt"; Flags: ignoreversion isreadme
 
 [Icons]

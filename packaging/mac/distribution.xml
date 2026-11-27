@@ -9,6 +9,7 @@
         <line choice="au"/>
         <line choice="vst3"/>
         <line choice="app"/>
+        <line choice="samples"/>
     </choices-outline>
     <choice id="au" title="Audio Unit (Logic Pro, MainStage, GarageBand)" start_selected="true">
         <pkg-ref id="com.danova.dsynth.au"/>
@@ -19,7 +20,11 @@
     <choice id="app" title="Application D-SYNTH (sans logiciel / standalone)" start_selected="true">
         <pkg-ref id="com.danova.dsynth.app"/>
     </choice>
+    <choice id="samples" title="Sons D-SYNTH (cordes, orgue, piano, cuivres...)" start_selected="true" enabled="false">
+        <pkg-ref id="com.danova.dsynth.samples"/>
+    </choice>
     <pkg-ref id="com.danova.dsynth.au" version="@VERSION@">au.pkg</pkg-ref>
+    <pkg-ref id="com.danova.dsynth.samples" version="@VERSION@">samples.pkg</pkg-ref>
     <pkg-ref id="com.danova.dsynth.vst3" version="@VERSION@">vst3.pkg</pkg-ref>
     <pkg-ref id="com.danova.dsynth.app" version="@VERSION@">app.pkg</pkg-ref>
 </installer-gui-script>

@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 #include <algorithm>
+#include <functional>
 
 namespace dsynth
 {
@@ -71,8 +72,10 @@ struct SampleBank
 
     bool empty() const { return zones.empty(); }
 
-    // Loads samples.txt and the raw files next to it. Returns false if nothing could be read.
-    bool load (const std::string& dir)
+    // Loads samples.txt and the files next to it: raw 16-bit, or compressed (FLAC, lossless) through 'decode',
+    // which must fill frames x channels interleaved 16-bit samples. Returns false if nothing could be read.
+    using Decoder = std::function<bool (const std::string& path, int16_t* dest, int frames, int channels)>;
+    bool load (const std::string& dir, const Decoder& decode = {})
     {
         zones.clear();
         for (auto& b : byInst) b.clear();
@@ -89,12 +92,20 @@ struct SampleBank
                              &z.frames, &z.channels, &rate, &z.loopStart, &z.loopEnd, &z.gain, fn) != 11) continue;
             if (z.inst < 0 || z.inst >= kNumSampleInsts || z.frames < 2 || z.channels < 1 || z.channels > 2) continue;
             z.rate = rate;
-            FILE* f = std::fopen ((dir + sep + fn).c_str(), "rb");
-            if (! f) continue;
             z.pcm.resize ((size_t) z.frames * (size_t) z.channels);
-            const size_t got = std::fread (z.pcm.data(), sizeof (int16_t), z.pcm.size(), f);
-            std::fclose (f);
-            if (got != z.pcm.size()) continue;
+            const std::string name (fn), path = dir + sep + name;
+            if (name.size() > 5 && name.compare (name.size() - 5, 5, ".flac") == 0)
+            {
+                if (! decode || ! decode (path, z.pcm.data(), z.frames, z.channels)) continue;
+            }
+            else
+            {
+                FILE* f = std::fopen (path.c_str(), "rb");
+                if (! f) continue;
+                const size_t got = std::fread (z.pcm.data(), sizeof (int16_t), z.pcm.size(), f);
+                std::fclose (f);
+                if (got != z.pcm.size()) continue;
+            }
             zones.push_back (std::move (z));
         }
         std::fclose (m);
